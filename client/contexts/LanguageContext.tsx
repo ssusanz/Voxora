@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { translations, Language } from '@/i18n/translations';
+import { translations, Language, weatherTranslations, moodTranslations } from '@/i18n/translations';
 
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: typeof translations.zh;
   toggleLanguage: () => void;
+  translateWeather: (value: string) => string;
+  translateMood: (value: string) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -45,10 +47,24 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setLanguage(newLang);
   }, [language, setLanguage]);
 
+  // 翻译天气值
+  const translateWeather = useCallback((value: string): string => {
+    if (!value) return value;
+    const translation = weatherTranslations[value];
+    return translation ? translation[language] : value;
+  }, [language]);
+
+  // 翻译心情值
+  const translateMood = useCallback((value: string): string => {
+    if (!value) return value;
+    const translation = moodTranslations[value];
+    return translation ? translation[language] : value;
+  }, [language]);
+
   const t = translations[language];
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, toggleLanguage }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, toggleLanguage, translateWeather, translateMood }}>
       {children}
     </LanguageContext.Provider>
   );

@@ -31,7 +31,7 @@ interface Memory {
 
 export default function HomeScreen() {
   const router = useSafeRouter();
-  const { t, language, toggleLanguage } = useLanguage();
+  const { t, language, toggleLanguage, translateWeather, translateMood } = useLanguage();
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -203,12 +203,12 @@ export default function HomeScreen() {
                     <View style={styles.memoryTags}>
                       {memory.weather && (
                         <View style={styles.tag}>
-                          <Text style={styles.tagText}>{memory.weather}</Text>
+                          <Text style={styles.tagText}>{translateWeather(memory.weather)}</Text>
                         </View>
                       )}
                       {memory.mood && (
                         <View style={[styles.tag, { backgroundColor: 'rgba(242,167,224,0.15)' }]}>
-                          <Text style={[styles.tagText, { color: '#F2A7E0' }]}>{memory.mood}</Text>
+                          <Text style={[styles.tagText, { color: '#F2A7E0' }]}>{translateMood(memory.mood)}</Text>
                         </View>
                       )}
                     </View>

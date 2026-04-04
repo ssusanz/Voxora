@@ -45,7 +45,7 @@ interface Memory {
 export default function MemoryDetailScreen() {
   const router = useSafeRouter();
   const { id } = useSafeSearchParams<{ id: number }>();
-  const { t, language } = useLanguage();
+  const { t, language, translateWeather, translateMood } = useLanguage();
   const [memory, setMemory] = useState<Memory | null>(null);
   const [loading, setLoading] = useState(true);
   const [animationComplete, setAnimationComplete] = useState(false);
@@ -232,7 +232,7 @@ export default function MemoryDetailScreen() {
           {memory.weather && (
             <View style={styles.islandTag}>
               <Feather name="cloud" size={14} color="#5CE0D8" />
-              <Text style={styles.islandTagText}>{memory.weather}</Text>
+              <Text style={styles.islandTagText}>{translateWeather(memory.weather)}</Text>
             </View>
           )}
 
@@ -240,7 +240,7 @@ export default function MemoryDetailScreen() {
           {memory.mood && (
             <View style={[styles.islandTag, { backgroundColor: 'rgba(242,167,224,0.15)' }]}>
               <MaterialCommunityIcons name="heart" size={14} color="#F2A7E0" />
-              <Text style={[styles.islandTagText, { color: '#F2A7E0' }]}>{memory.mood}</Text>
+              <Text style={[styles.islandTagText, { color: '#F2A7E0' }]}>{translateMood(memory.mood)}</Text>
             </View>
           )}
         </View>
