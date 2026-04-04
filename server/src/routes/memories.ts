@@ -91,6 +91,14 @@ function normalizeDemoMemories(sourceList: unknown[]): MemoryRecord[] {
 }
 
 function getSupabaseClientOrNull() {
+  const forceDemoDataset = ['1', 'true', 'yes'].includes(
+    String(process.env.COZE_FORCE_DEMO_MEMORIES || '').toLowerCase()
+  );
+  if (forceDemoDataset) {
+    console.warn('[memories] COZE_FORCE_DEMO_MEMORIES enabled, using demo dataset');
+    return null;
+  }
+
   try {
     return getSupabaseClient();
   } catch (error) {
