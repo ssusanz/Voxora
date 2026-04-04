@@ -251,3 +251,33 @@ import { Screen } from '../../../components/Screen';
 ## 本地开发
 
 `coze dev`：用来首次启动前后端服务，也可以用来重启前后端服务（该命令会先尝试杀掉占用端口的进程，再启动服务）
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | Port | Start command |
+|---------|------|---------------|
+| Express.js API server | 9091 | `cd server && NODE_ENV=development PORT=9091 npx tsx watch ./src/index.ts` |
+| Expo dev server (web) | 5000 | `cd client && EXPO_PUBLIC_BACKEND_BASE_URL="http://localhost:9091" npx expo start --web --clear --port 5000` |
+
+### Required environment variables
+
+The Express server requires these env vars to start (it will crash without them):
+- `COZE_SUPABASE_URL` — Supabase project URL
+- `COZE_SUPABASE_ANON_KEY` — Supabase anonymous key
+- `COZE_BUCKET_ENDPOINT_URL` — S3-compatible storage endpoint
+- `COZE_BUCKET_NAME` — S3 bucket name
+
+Optional: `COZE_SUPABASE_SERVICE_ROLE_KEY` (falls back to anon key).
+
+If these are not available, you can provide placeholder values to start the server and verify the health endpoint (`/api/v1/health`). Data operations (CRUD on memories, file upload) will fail without real credentials.
+
+### Gotchas
+
+- The `coze` CLI is not available in Cloud Agent VMs. Start services directly using the commands in the table above instead of `coze dev`.
+- `client/package.json` has a `postinstall` hook that runs `depcheck` to auto-install missing deps. This runs automatically during `pnpm install`.
+- The `.npmrc` uses the `https://registry.npmmirror.com` mirror registry. Pass `--registry=https://registry.npmmirror.com` to `pnpm install` for reliability.
+- Lint: `npm run lint` (both client+server), `npm run lint:client`, `npm run lint:server`. See root `package.json` scripts.
+- The Expo client runs in web mode (`--web`). Set `EXPO_PUBLIC_BACKEND_BASE_URL` so the client can reach the API server.
+- `EXPO_NO_DEPENDENCY_VALIDATION=1` skips Expo's dependency validation check, which can fail in CI-like environments.
