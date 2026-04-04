@@ -1,15 +1,18 @@
--- Voxora 数据迁移脚本
--- 使用方法：在海外版 Supabase SQL Editor 中执行此脚本
+-- Voxora Demo Data Migration Script
+-- Run this script to insert demo memory data
 
--- 清空现有数据（可选，谨慎使用）
+-- Clear existing data (optional, uncomment if needed)
 -- TRUNCATE TABLE memories RESTART IDENTITY CASCADE;
 
--- 插入回忆数据
-INSERT INTO memories (id, title, memory_date, location, weather, mood, media_keys, audio_key, created_at, updated_at) VALUES
-(1, '夏日海滩漫步', '2024-07-15 00:00:00+08:00', '三亚亚龙湾', '晴天', '开心', NULL, NULL, '2026-04-02 19:54:01.450561+08:00', NULL),
-(2, '冬日雪景', '2024-01-20 00:00:00+08:00', '哈尔滨冰雪大世界', '雪天', '兴奋', NULL, NULL, '2026-04-02 19:54:01.450561+08:00', NULL),
-(3, '秋日黄昏', '2023-10-08 00:00:00+08:00', '北京颐和园', '多云', '平静', NULL, NULL, '2026-04-02 19:54:01.450561+08:00', NULL)
-ON CONFLICT (id) DO NOTHING;
+-- Insert demo memories
+INSERT INTO memories (title, memory_date, location, weather, mood, media_keys, audio_key) VALUES
+('夏日海滩漫步', '2024-07-15', '三亚亚龙湾', '晴天', '开心', NULL, NULL),
+('冬日雪景', '2024-01-20', '哈尔滨冰雪大世界', '雪天', '兴奋', NULL, NULL),
+('秋日黄昏', '2023-10-08', '北京颐和园', '多云', '平静', NULL, NULL),
+('Apr 2', '2026-04-02', 'HK', '晴天', '感动', NULL, NULL),
+('Hello World Memory', '2026-04-04', 'Cloud VM', '晴天', '开心', NULL, NULL),
+('My First Cloud Memory', '2026-04-04', 'Beijing', '晴天', '开心', NULL, NULL),
+('Full Stack Working', '2026-04-04', 'Cloud VM', '多云', '平静', NULL, NULL);
 
--- 重置序列（确保新插入数据 ID 正确）
-SELECT setval('memories_id_seq', (SELECT MAX(id) FROM memories));
+-- Verify insertion
+SELECT * FROM memories ORDER BY memory_date DESC;
