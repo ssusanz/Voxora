@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Dimensions,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
@@ -29,7 +30,8 @@ import { Video, ResizeMode, Audio, AVPlaybackStatus } from 'expo-av';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+const DEFAULT_API_BASE_URL = Platform.OS === 'web' ? '' : 'http://localhost:9091';
+const API_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || DEFAULT_API_BASE_URL;
 
 interface Memory {
   id: number;
@@ -86,7 +88,7 @@ export default function MemoryDetailScreen() {
        * 接口：GET /api/v1/memories/:id
        * Path 参数：id: number
        */
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${id}`);
+      const response = await fetch(`${API_BASE_URL}/api/v1/memories/${id}`);
       const result = await response.json();
       if (result.success) {
         setMemory(result.data);

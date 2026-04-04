@@ -16,7 +16,8 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+const EXPO_PUBLIC_BACKEND_BASE_URL =
+  process.env.EXPO_PUBLIC_BACKEND_BASE_URL ?? (typeof window !== 'undefined' ? '' : 'http://localhost:9091');
 
 interface Memory {
   id: number;

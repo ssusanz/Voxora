@@ -24,6 +24,11 @@ import { createFormDataFile } from '@/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+const API_BASE_URL =
+  EXPO_PUBLIC_BACKEND_BASE_URL ||
+  (Platform.OS === 'web'
+    ? ''
+    : 'http://localhost:9091');
 
 interface MediaFile {
   uri: string;
@@ -128,7 +133,7 @@ export default function AddMemoryScreen() {
        * 接口：POST /api/v1/upload
        * FormData 参数：file: File
        */
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/upload`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -145,7 +150,7 @@ export default function AddMemoryScreen() {
       const formDataFile = await createFormDataFile(audioFile.uri, audioFile.name, audioFile.type);
       formData.append('file', formDataFile as any);
 
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/upload`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -181,7 +186,7 @@ export default function AddMemoryScreen() {
        * 接口：POST /api/v1/memories
        * Body 参数：title: string, memory_date: string, location?: string, weather?: string, mood?: string, media_keys?: string[], audio_key?: string
        */
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/memories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
