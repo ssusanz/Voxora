@@ -137,6 +137,27 @@ async function attachMediaUrls(memory: MemoryRecord) {
   };
 }
 
+async function generateMediaUrlSafe(key: string): Promise<string> {
+  try {
+    return await storage.generatePresignedUrl({ key, expireTime: 86400 });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.warn(`[memories] presigned URL failed for key "${key}": ${reason}`);
+    return `/mock-storage/${key}`;
+  }
+}
+
+async function attachStorageUrlsSafe(memory: any) {
+  const mediaKeys = Array.isArray(memory.media_keys) ? memory.media_keys : [];
+  const media_urls = await Promise.all(mediaKeys.map((key: string) => generateMediaUrlSafe(key)));
+  const audio_url = memory.audio_key ? await generateMediaUrlSafe(memory.audio_key) : null;
+  return {
+    ...memory,
+    media_urls,
+    audio_url,
+  };
+}
+
 // 初始化对象存储
 const storage = new S3Storage({
   endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
@@ -165,35 +186,7 @@ router.get('/', async (req, res) => {
     if (error) throw new Error(`查询失败: ${error.message}`);
 
     // 为每条回忆生成媒体文件的访问 URL
-    const memoriesWithUrls = await Promise.all(
-      (data || []).map(async (memory: any) => {
-        let media_urls: string[] = [];
-        let audio_url: string | null = null;
-
-        // 生成媒体文件 URL
-        if (memory.media_keys && memory.media_keys.length > 0) {
-          media_urls = await Promise.all(
-            memory.media_keys.map((key: string) =>
-              storage.generatePresignedUrl({ key, expireTime: 86400 })
-            )
-          );
-        }
-
-        // 生成音频文件 URL
-        if (memory.audio_key) {
-          audio_url = await storage.generatePresignedUrl({
-            key: memory.audio_key,
-            expireTime: 86400,
-          });
-        }
-
-        return {
-          ...memory,
-          media_urls,
-          audio_url,
-        };
-      })
-    );
+    const memoriesWithUrls = await Promise.all((data || []).map(attachStorageUrlsSafe));
 
     return res.json({ success: true, data: memoriesWithUrls });
   } catch (err: any) {
@@ -229,32 +222,10 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: '回忆不存在' });
     }
 
-    // 生成媒体文件 URL
-    let media_urls: string[] = [];
-    let audio_url: string | null = null;
-
-    if (data.media_keys && data.media_keys.length > 0) {
-      media_urls = await Promise.all(
-        data.media_keys.map((key: string) =>
-          storage.generatePresignedUrl({ key, expireTime: 86400 })
-        )
-      );
-    }
-
-    if (data.audio_key) {
-      audio_url = await storage.generatePresignedUrl({
-        key: data.audio_key,
-        expireTime: 86400,
-      });
-    }
-
+    const payload = await attachStorageUrlsSafe(data);
     return res.json({
       success: true,
-      data: {
-        ...data,
-        media_urls,
-        audio_url,
-      },
+      data: payload,
     });
   } catch (err: any) {
     console.error('获取回忆详情失败:', err);
