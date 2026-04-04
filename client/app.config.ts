@@ -3,6 +3,10 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 const appName = process.env.COZE_PROJECT_NAME || process.env.EXPO_PUBLIC_COZE_PROJECT_NAME || '应用';
 const projectId = process.env.COZE_PROJECT_ID || process.env.EXPO_PUBLIC_COZE_PROJECT_ID;
 const slugAppName = projectId ? `app${projectId}` : 'myapp';
+const webBasePathEnv = process.env.EXPO_PUBLIC_WEB_BASE_PATH?.trim();
+const webBasePath = webBasePathEnv
+  ? (webBasePathEnv === '/' ? '/' : `/${webBasePathEnv.replace(/^\/+|\/+$/g, '')}`)
+  : undefined;
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   return {
@@ -70,7 +74,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      ...(webBasePath ? { "baseUrl": webBasePath } : {})
     }
   }
 }

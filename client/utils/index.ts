@@ -4,6 +4,7 @@ import utc from 'dayjs/plugin/utc';
 dayjs.extend(utc);
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_BASE ?? '').replace(/\/$/, '');
+const BACKEND_BASE_URL = (process.env.EXPO_PUBLIC_BACKEND_BASE_URL ?? '').replace(/\/$/, '');
 
 /**
  * 创建跨平台兼容的文件对象，用于 FormData.append()
@@ -25,6 +26,16 @@ export async function createFormDataFile(
   }
   return { uri: fileUri, type: mimeType, name: fileName };
 }
+
+/**
+ * 构建后端 API 地址
+ * - 若配置 EXPO_PUBLIC_BACKEND_BASE_URL：返回绝对地址
+ * - 若未配置：回退为同域相对路径（用于部署在同域反向代理场景）
+ */
+export const buildApiUrl = (path: string): string => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${BACKEND_BASE_URL}${normalizedPath}`;
+};
 
 /**
  * 构建文件或图片完整的URL

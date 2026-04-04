@@ -15,8 +15,7 @@ import { Screen } from '@/components/Screen';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+import { buildApiUrl } from '@/utils';
 
 interface Memory {
   id: number;
@@ -43,7 +42,7 @@ export default function HomeScreen() {
        * 接口：GET /api/v1/memories
        * 无参数
        */
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories`);
+      const response = await fetch(buildApiUrl('/api/v1/memories'));
       const result = await response.json();
       if (result.success) {
         setMemories(result.data);

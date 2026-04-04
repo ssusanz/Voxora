@@ -1,0 +1,82 @@
+name: Deploy Web Preview
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_BACKEND_BASE_URL: ${{ vars.EXPO_PUBLIC_BACKEND_BASE_URL }}
+      EXPO_PUBLIC_WEB_BASE_PATH: ${{ vars.EXPO_PUBLIC_WEB_BASE_PATH }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve web base path
+        run: |
+          if [ -z "${EXPO_PUBLIC_WEB_BASE_PATH:-}" ]; then
+            REPO_NAME="${GITHUB_REPOSITORY#*/}"
+            if [[ "$REPO_NAME" == *.github.io ]]; then
+              BASE_PATH="/"
+            else
+              BASE_PATH="/$REPO_NAME"
+            fi
+          else
+            BASE_PATH="$EXPO_PUBLIC_WEB_BASE_PATH"
+          fi
+          echo "EXPO_PUBLIC_WEB_BASE_PATH=$BASE_PATH" >> "$GITHUB_ENV"
+          echo "Resolved EXPO_PUBLIC_WEB_BASE_PATH=$BASE_PATH"
+
+      - name: Export Expo web bundle
+        working-directory: client
+        run: npx expo export --platform web --output-dir dist --clear
+
+      - name: Add SPA fallback
+        run: cp client/dist/index.html client/dist/404.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: client/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

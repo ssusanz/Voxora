@@ -251,3 +251,26 @@ import { Screen } from '../../../components/Screen';
 ## 本地开发
 
 `coze dev`：用来首次启动前后端服务，也可以用来重启前后端服务（该命令会先尝试杀掉占用端口的进程，再启动服务）
+
+## 稳定 Web 预览链接（GitHub Pages）
+
+仓库已提供自动发布工作流：`.github/workflows/deploy-web-preview.yml`。
+
+- 触发条件：推送到 `main` 分支，或手动触发 `workflow_dispatch`
+- 部署目标：GitHub Pages（固定 URL）
+
+启用方式：
+
+1. 打开 GitHub 仓库设置 → `Pages`
+2. 在 `Build and deployment` 中将 Source 设为 `GitHub Actions`
+3. 推送代码到 `main` 分支，等待工作流完成
+
+默认预览地址规则：
+
+- 普通仓库：`https://<owner>.github.io/<repo>/`
+- 若仓库名是 `<owner>.github.io`：`https://<owner>.github.io/`
+
+可选仓库变量（Settings → Secrets and variables → Actions → Variables）：
+
+- `EXPO_PUBLIC_BACKEND_BASE_URL`：Web 端请求后端的基础域名（如 `https://api.example.com`）
+- `EXPO_PUBLIC_WEB_BASE_PATH`：自定义发布子路径（如 `/preview`），不设置时按仓库名自动计算
