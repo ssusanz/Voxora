@@ -14,6 +14,7 @@ import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
 
@@ -30,6 +31,7 @@ interface Memory {
 
 export default function HomeScreen() {
   const router = useSafeRouter();
+  const { t, language, toggleLanguage } = useLanguage();
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,7 +49,7 @@ export default function HomeScreen() {
         setMemories(result.data);
       }
     } catch (error) {
-      console.error('获取回忆列表失败:', error);
+      console.error('Failed to fetch memories:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -75,7 +77,8 @@ export default function HomeScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('zh-CN', {
+    const locale = language === 'zh' ? 'zh-CN' : 'en-US';
+    return date.toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -87,7 +90,7 @@ export default function HomeScreen() {
       <Screen style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#7B6EF6" />
-          <Text style={styles.loadingText}>加载回忆中...</Text>
+          <Text style={styles.loadingText}>{t.loading}</Text>
         </View>
       </Screen>
     );
@@ -103,8 +106,33 @@ export default function HomeScreen() {
 
       {/* 标题区域 */}
       <View style={styles.header}>
-        <Text style={styles.title}>Voxora</Text>
-        <Text style={styles.subtitle}>记录美好回忆</Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.title}>{t.appName}</Text>
+            <Text style={styles.subtitle}>{t.home.subtitle}</Text>
+          </View>
+          {/* 语言切换按钮 */}
+          <TouchableOpacity
+            style={styles.languageButton}
+            onPress={toggleLanguage}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['rgba(123,110,246,0.3)', 'rgba(92,224,216,0.2)']}
+              style={styles.languageButtonGradient}
+            >
+              <Feather 
+                name="globe" 
+                size={16} 
+                color="#EEEAF6" 
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.languageButtonText}>
+                {t.language.switchTo}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 时间轴 */}
@@ -122,8 +150,8 @@ export default function HomeScreen() {
         {memories.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Feather name="heart" size={64} color="rgba(123,110,246,0.3)" />
-            <Text style={styles.emptyText}>还没有回忆</Text>
-            <Text style={styles.emptySubtext}>点击下方按钮开始记录</Text>
+            <Text style={styles.emptyText}>{t.home.emptyTitle}</Text>
+            <Text style={styles.emptySubtext}>{t.home.emptySubtitle}</Text>
           </View>
         ) : (
           memories.map((memory, index) => (
@@ -236,6 +264,11 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 20,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   title: {
     fontSize: 36,
     fontWeight: '700',
@@ -247,6 +280,27 @@ const styles = StyleSheet.create({
     color: '#8E8BA3',
     marginTop: 4,
     letterSpacing: 1,
+  },
+  languageButton: {
+    shadowColor: '#7B6EF6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  languageButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  languageButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#EEEAF6',
   },
   scrollView: {
     flex: 1,

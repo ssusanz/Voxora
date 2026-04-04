@@ -21,6 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { createFormDataFile } from '@/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
 
@@ -30,11 +31,9 @@ interface MediaFile {
   name: string;
 }
 
-const WEATHER_OPTIONS = ['晴天', '多云', '雨天', '雪天', '阴天', '大风'];
-const MOOD_OPTIONS = ['开心', '感动', '平静', '兴奋', '怀念', '温馨', '惊喜', '忧伤'];
-
 export default function AddMemoryScreen() {
   const router = useSafeRouter();
+  const { t, language } = useLanguage();
   const [loading, setLoading] = useState(false);
 
   // 表单数据
@@ -45,6 +44,22 @@ export default function AddMemoryScreen() {
   const [mood, setMood] = useState('');
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [audioFile, setAudioFile] = useState<MediaFile | null>(null);
+
+  // 获取天气选项
+  const getWeatherOptions = () => {
+    const options = t.addMemory.weatherOptions;
+    return language === 'zh' 
+      ? ['晴天', '多云', '雨天', '雪天', '阴天', '大风']
+      : ['Sunny', 'Cloudy', 'Rainy', 'Snowy', 'Overcast', 'Windy'];
+  };
+
+  // 获取心情选项
+  const getMoodOptions = () => {
+    const options = t.addMemory.moodOptions;
+    return language === 'zh'
+      ? ['开心', '感动', '平静', '兴奋', '怀念', '温馨', '惊喜', '忧伤']
+      : ['Happy', 'Touched', 'Peaceful', 'Excited', 'Nostalgic', 'Warm', 'Surprised', 'Sad'];
+  };
 
   const pickImage = async () => {
     try {
@@ -64,8 +79,8 @@ export default function AddMemoryScreen() {
         setMediaFiles([...mediaFiles, ...newFiles]);
       }
     } catch (error) {
-      console.error('选择图片失败:', error);
-      Alert.alert('错误', '选择图片失败');
+      console.error('Failed to pick image:', error);
+      Alert.alert(t.error, t.addMemory.alertImagePickFailed);
     }
   };
 
@@ -85,8 +100,8 @@ export default function AddMemoryScreen() {
         });
       }
     } catch (error) {
-      console.error('选择音频失败:', error);
-      Alert.alert('错误', '选择音频失败');
+      console.error('Failed to pick audio:', error);
+      Alert.alert(t.error, t.addMemory.alertAudioPickFailed);
     }
   };
 
@@ -146,12 +161,12 @@ export default function AddMemoryScreen() {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('提示', '请输入回忆标题');
+      Alert.alert(t.addMemory.alertTitleRequired);
       return;
     }
 
     if (!memoryDate) {
-      Alert.alert('提示', '请选择回忆日期');
+      Alert.alert(t.addMemory.alertDateRequired);
       return;
     }
 
@@ -182,19 +197,22 @@ export default function AddMemoryScreen() {
 
       const result = await response.json();
       if (result.success) {
-        Alert.alert('成功', '回忆已保存', [
-          { text: '确定', onPress: () => router.back() },
+        Alert.alert(t.success, t.addMemory.alertSaveSuccess, [
+          { text: t.confirm, onPress: () => router.back() },
         ]);
       } else {
-        Alert.alert('错误', result.error || '保存失败');
+        Alert.alert(t.error, result.error || t.addMemory.alertSaveFailed);
       }
     } catch (error) {
-      console.error('保存回忆失败:', error);
-      Alert.alert('错误', '保存回忆失败');
+      console.error('Failed to save memory:', error);
+      Alert.alert(t.error, t.addMemory.alertSaveFailed);
     } finally {
       setLoading(false);
     }
   };
+
+  const weatherOptions = getWeatherOptions();
+  const moodOptions = getMoodOptions();
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} disabled={Platform.OS === 'web'}>
@@ -214,19 +232,19 @@ export default function AddMemoryScreen() {
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
               <Feather name="x" size={24} color="#EEEAF6" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>新增回忆</Text>
+            <Text style={styles.headerTitle}>{t.addMemory.title}</Text>
             <View style={{ width: 40 }} />
           </View>
 
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
             {/* 标题输入 */}
             <View style={styles.section}>
-              <Text style={styles.label}>回忆标题 *</Text>
+              <Text style={styles.label}>{t.addMemory.titleLabelRequired}</Text>
               <TextInput
                 style={styles.input}
                 value={title}
                 onChangeText={setTitle}
-                placeholder="给这段回忆起个名字"
+                placeholder={t.addMemory.titlePlaceholder}
                 placeholderTextColor="#6B6880"
               />
             </View>
@@ -234,22 +252,22 @@ export default function AddMemoryScreen() {
             {/* 日期和地点 */}
             <View style={styles.row}>
               <View style={[styles.section, { flex: 1 }]}>
-                <Text style={styles.label}>回忆日期 *</Text>
+                <Text style={styles.label}>{t.addMemory.dateLabelRequired}</Text>
                 <TextInput
                   style={styles.input}
                   value={memoryDate}
                   onChangeText={setMemoryDate}
-                  placeholder="YYYY-MM-DD"
+                  placeholder={t.addMemory.datePlaceholder}
                   placeholderTextColor="#6B6880"
                 />
               </View>
               <View style={[styles.section, { flex: 1 }]}>
-                <Text style={styles.label}>地点</Text>
+                <Text style={styles.label}>{t.addMemory.locationLabel}</Text>
                 <TextInput
                   style={styles.input}
                   value={location}
                   onChangeText={setLocation}
-                  placeholder="在哪里"
+                  placeholder={t.addMemory.locationPlaceholder}
                   placeholderTextColor="#6B6880"
                 />
               </View>
@@ -257,9 +275,9 @@ export default function AddMemoryScreen() {
 
             {/* 天气 */}
             <View style={styles.section}>
-              <Text style={styles.label}>天气</Text>
+              <Text style={styles.label}>{t.addMemory.weatherLabel}</Text>
               <View style={styles.optionsGrid}>
-                {WEATHER_OPTIONS.map((item) => (
+                {weatherOptions.map((item) => (
                   <TouchableOpacity
                     key={item}
                     style={[
@@ -283,9 +301,9 @@ export default function AddMemoryScreen() {
 
             {/* 心情 */}
             <View style={styles.section}>
-              <Text style={styles.label}>心情</Text>
+              <Text style={styles.label}>{t.addMemory.moodLabel}</Text>
               <View style={styles.optionsGrid}>
-                {MOOD_OPTIONS.map((item) => (
+                {moodOptions.map((item) => (
                   <TouchableOpacity
                     key={item}
                     style={[
@@ -309,7 +327,7 @@ export default function AddMemoryScreen() {
 
             {/* 媒体文件 */}
             <View style={styles.section}>
-              <Text style={styles.label}>照片和视频</Text>
+              <Text style={styles.label}>{t.addMemory.mediaLabel}</Text>
               <View style={styles.mediaGrid}>
                 {mediaFiles.map((file, index) => (
                   <View key={index} style={styles.mediaItem}>
@@ -330,14 +348,14 @@ export default function AddMemoryScreen() {
                 ))}
                 <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
                   <Feather name="plus" size={24} color="#8E8BA3" />
-                  <Text style={styles.addMediaText}>添加</Text>
+                  <Text style={styles.addMediaText}>{t.addMemory.addMedia}</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* 音频 */}
             <View style={styles.section}>
-              <Text style={styles.label}>音频</Text>
+              <Text style={styles.label}>{t.addMemory.audioLabel}</Text>
               {audioFile ? (
                 <View style={styles.audioItem}>
                   <MaterialCommunityIcons name="music-note" size={24} color="#7B6EF6" />
@@ -351,7 +369,7 @@ export default function AddMemoryScreen() {
               ) : (
                 <TouchableOpacity style={styles.addAudioButton} onPress={pickAudio}>
                   <Feather name="music" size={20} color="#8E8BA3" />
-                  <Text style={styles.addAudioText}>添加音频文件</Text>
+                  <Text style={styles.addAudioText}>{t.addMemory.addAudio}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -374,7 +392,7 @@ export default function AddMemoryScreen() {
                 ) : (
                   <>
                     <Feather name="check" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.saveButtonText}>保存回忆</Text>
+                    <Text style={styles.saveButtonText}>{t.addMemory.saveButton}</Text>
                   </>
                 )}
               </LinearGradient>

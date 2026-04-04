@@ -26,6 +26,7 @@ import Animated, {
   Extrapolate,
 } from 'react-native-reanimated';
 import { Video, ResizeMode, Audio, AVPlaybackStatus } from 'expo-av';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
@@ -44,6 +45,7 @@ interface Memory {
 export default function MemoryDetailScreen() {
   const router = useSafeRouter();
   const { id } = useSafeSearchParams<{ id: number }>();
+  const { t, language } = useLanguage();
   const [memory, setMemory] = useState<Memory | null>(null);
   const [loading, setLoading] = useState(true);
   const [animationComplete, setAnimationComplete] = useState(false);
@@ -90,7 +92,7 @@ export default function MemoryDetailScreen() {
         setMemory(result.data);
       }
     } catch (error) {
-      console.error('获取回忆详情失败:', error);
+      console.error('Failed to fetch memory detail:', error);
     } finally {
       setLoading(false);
     }
@@ -136,7 +138,8 @@ export default function MemoryDetailScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('zh-CN', {
+    const locale = language === 'zh' ? 'zh-CN' : 'en-US';
+    return date.toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -167,7 +170,7 @@ export default function MemoryDetailScreen() {
         setIsPlaying(true);
       }
     } catch (error) {
-      console.error('播放音频失败:', error);
+      console.error('Failed to play audio:', error);
     }
   };
 
@@ -176,7 +179,7 @@ export default function MemoryDetailScreen() {
       <Screen style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#7B6EF6" />
-          <Text style={styles.loadingText}>加载回忆中...</Text>
+          <Text style={styles.loadingText}>{t.loading}</Text>
         </View>
       </Screen>
     );
@@ -187,7 +190,7 @@ export default function MemoryDetailScreen() {
       <Screen style={styles.container}>
         <View style={styles.loadingContainer}>
           <Feather name="alert-circle" size={48} color="#8E8BA3" />
-          <Text style={styles.loadingText}>回忆不存在</Text>
+          <Text style={styles.loadingText}>{t.memoryDetail.notFound}</Text>
         </View>
       </Screen>
     );
