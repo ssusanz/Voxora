@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { getSupabaseClient } from '../storage/database/supabase-client';
 import { S3Storage } from 'coze-coding-dev-sdk';
 
@@ -20,6 +21,74 @@ interface MemoryRecord {
 }
 
 let demoMemoriesCache: MemoryRecord[] | null = null;
+const CURRENT_FILE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const DEMO_MEMORIES_FILE_PATH = path.resolve(
+  CURRENT_FILE_DIR,
+  '../../../migration/memories_data.json'
+);
+
+function toNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function toPositiveInteger(value: unknown): number | null {
+  const candidate = Number(value);
+  if (!Number.isInteger(candidate) || candidate <= 0) {
+    return null;
+  }
+  return candidate;
+}
+
+function toStringArrayOrNull(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const list = value
+    .map((item) => toNonEmptyString(item))
+    .filter((item): item is string => item !== null);
+  return list.length > 0 ? list : null;
+}
+
+function normalizeDemoMemories(sourceList: unknown[]): MemoryRecord[] {
+  const normalized: MemoryRecord[] = [];
+  const usedIds = new Set<number>();
+  let fallbackId = 1;
+
+  for (const sourceItem of sourceList) {
+    const source =
+      sourceItem && typeof sourceItem === 'object'
+        ? (sourceItem as Record<string, unknown>)
+        : {};
+
+    let id = toPositiveInteger(source.id) ?? fallbackId;
+    while (usedIds.has(id)) {
+      id += 1;
+    }
+    usedIds.add(id);
+    fallbackId = Math.max(fallbackId, id + 1);
+
+    const memoryDate = toNonEmptyString(source.memory_date) ?? new Date().toISOString().slice(0, 10);
+
+    normalized.push({
+      id,
+      title: toNonEmptyString(source.title) ?? `迁移回忆 ${id}`,
+      memory_date: memoryDate,
+      location: toNonEmptyString(source.location),
+      weather: toNonEmptyString(source.weather),
+      mood: toNonEmptyString(source.mood),
+      media_keys: toStringArrayOrNull(source.media_keys),
+      audio_key: toNonEmptyString(source.audio_key),
+      created_at: toNonEmptyString(source.created_at),
+      updated_at: toNonEmptyString(source.updated_at),
+    });
+  }
+
+  return normalized;
+}
 
 function getSupabaseClientOrNull() {
   try {
@@ -36,10 +105,13 @@ async function loadDemoMemories(): Promise<MemoryRecord[]> {
     return demoMemoriesCache;
   }
 
-  const demoFilePath = path.resolve(process.cwd(), '../migration/memories_data.json');
-  const raw = await fs.readFile(demoFilePath, 'utf-8');
-  const parsed = JSON.parse(raw) as MemoryRecord[];
-  demoMemoriesCache = parsed
+  const raw = await fs.readFile(DEMO_MEMORIES_FILE_PATH, 'utf-8');
+  const parsed = JSON.parse(raw) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error('migration/memories_data.json 内容必须为数组');
+  }
+
+  demoMemoriesCache = normalizeDemoMemories(parsed)
     .slice()
     .sort(
       (a, b) => new Date(b.memory_date).getTime() - new Date(a.memory_date).getTime()
@@ -210,7 +282,10 @@ router.post('/', async (req, res) => {
         created_at: new Date().toISOString(),
         updated_at: null,
       };
-      demoData.unshift(newMemory);
+      demoData.push(newMemory);
+      demoData.sort(
+        (a, b) => new Date(b.memory_date).getTime() - new Date(a.memory_date).getTime()
+      );
       return res.json({ success: true, data: newMemory });
     }
 

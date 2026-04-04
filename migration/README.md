@@ -10,8 +10,8 @@
 
 | 数据类型 | 数量 | 说明 |
 |---------|------|------|
-| 回忆记录 | 8 条 | 包含标题、日期、地点、天气、心情 |
-| 图片文件 | 2 个 | 已上传到对象存储 |
+| 回忆记录 | 7 条 | 包含 ID、标题、日期、地点、天气、心情 |
+| 图片文件 | 0 个 | 当前演示数据不包含媒体文件 |
 
 ---
 
@@ -25,31 +25,14 @@
 
 ### 步骤 2：运行导入脚本
 
-在海外版项目中创建导入脚本：
+项目已内置导入脚本 `migration/import_data.mjs`，直接执行即可：
 
-```javascript
-// import_data.js
-const fs = require('fs');
-const data = JSON.parse(fs.readFileSync('./memories_data.json', 'utf8'));
+```bash
+# 使用默认数据文件 migration/memories_data.json
+node ./migration/import_data.mjs http://localhost:9091
 
-async function importData() {
-  for (const memory of data) {
-    await fetch('http://localhost:9091/api/v1/memories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: memory.title,
-        memory_date: memory.memory_date,
-        location: memory.location,
-        weather: memory.weather,
-        mood: memory.mood,
-      }),
-    });
-  }
-  console.log('导入完成！');
-}
-
-importData();
+# 可选：指定自定义数据文件
+node ./migration/import_data.mjs http://localhost:9091 ./migration/memories_data.json
 ```
 
 ---
@@ -95,6 +78,7 @@ importData();
 ```
 migration/
 ├── migrate_data.sql      # SQL 迁移脚本
+├── import_data.mjs       # API 导入脚本（推荐）
 ├── memories_data.json    # JSON 格式数据
 └── README.md            # 本说明文档
 ```
