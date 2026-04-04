@@ -271,7 +271,7 @@ The Express server requires these env vars to start (it will crash without them)
 
 Optional: `COZE_SUPABASE_SERVICE_ROLE_KEY` (falls back to anon key).
 
-If these are not available, you can provide placeholder values to start the server and verify the health endpoint (`/api/v1/health`). Data operations (CRUD on memories, file upload) will fail without real credentials.
+Additionally, `COZE_WORKLOAD_IDENTITY_API_KEY` is required by the `coze-coding-dev-sdk` S3Storage client for generating presigned URLs (used by GET `/api/v1/memories` and file upload). Without it, memory list and media endpoints fail.
 
 ### Gotchas
 
