@@ -17,6 +17,10 @@ BACKEND_PORT="19091"
 METRO_PORT="18081"
 # 仅当需要二维码/终端显示内网 IP 时注释掉（例如同 WiFi 且路由器无 NAT 回流）
 export REACT_NATIVE_PACKAGER_HOSTNAME="$PUBLIC_IP"
+# 与文档一致：https://docs.expo.dev/more/expo-cli/#server-url — 保证终端/二维码里的 exp:// 主机为公网（非 localhost）
+export EXPO_PACKAGER_PROXY_URL="http://${PUBLIC_IP}:${METRO_PORT}"
+# Expo Go：禁用 http「选端」中间页，二维码内容为纯 exp://…，便于相机/Expo Go 直接打开
+export EXPO_NO_REDIRECT_PAGE=1
 # =====================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -67,6 +71,7 @@ echo "📱 纯内网备查（同 WiFi、不走公网）"
 echo "   exp://$LAN_IP:$METRO_PORT"
 echo "   API: http://$LAN_IP:$BACKEND_PORT"
 echo ""
+echo "📷 Expo Go 二维码应为 exp://（已关选端页 EXPO_NO_REDIRECT_PAGE）；若仍见 http 链接请确认本脚本已保存并重启 Metro"
 echo "📎 与脚本同参：client/app.config.js extra.apiUrl、client/metro.config.js BACKEND_TARGET（内网代理）"
 echo "📂 日志: $LOG_DIR/server.log"
 echo ""
@@ -76,5 +81,5 @@ echo "========================================================="
 echo ""
 
 cd "$CLIENT_DIR"
-# 调试定版：缺省 development build；要用 Expo Go 时在 Metro 终端按 s
-pnpm exec expo start --lan --dev-client --port "$METRO_PORT" --clear
+# 缺省 Expo Go（exp:// 二维码，用 Expo Go 内扫码）。要切 development build 时在 Metro 里按 s。
+pnpm exec expo start --lan --go --port "$METRO_PORT" --clear
