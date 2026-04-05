@@ -161,46 +161,143 @@ export const translations = {
     // Language
     language: {
       current: 'English',
+      switchTo: 'हिन्दी',
+    },
+  },
+
+  hi: {
+    // Common
+    appName: 'Voxora',
+    loading: 'यादें लोड हो रही हैं...',
+    error: 'त्रुटि',
+    success: 'सफलता',
+    confirm: 'ठीक है',
+    cancel: 'रद्द करें',
+    save: 'सहेजें',
+    delete: 'हटाएं',
+
+    // Home
+    home: {
+      subtitle: 'खूबसूरत पलों को संजोएं',
+      emptyTitle: 'अभी तक कोई याद नहीं',
+      emptySubtitle: 'शुरू करने के लिए नीचे बटन दबाएं',
+      refresh: 'रीफ्रेश करें',
+    },
+
+    // Add Memory
+    addMemory: {
+      title: 'नई याद',
+      titleLabel: 'याद का शीर्षक',
+      titlePlaceholder: 'इस याद को एक नाम दें',
+      titleLabelRequired: 'याद का शीर्षक *',
+      dateLabel: 'तारीख',
+      dateLabelRequired: 'तारीख *',
+      datePlaceholder: 'YYYY-MM-DD',
+      locationLabel: 'स्थान',
+      locationPlaceholder: 'कहां',
+      weatherLabel: 'मौसम',
+      moodLabel: 'मूड',
+      mediaLabel: 'फोटो और वीडियो',
+      audioLabel: 'ऑडियो',
+      addMedia: 'जोड़ें',
+      addAudio: 'ऑडियो फ़ाइल जोड़ें',
+      saveButton: 'याद सहेजें',
+
+      // Weather options
+      weatherOptions: {
+        sunny: 'धूप',
+        cloudy: 'बादल',
+        rainy: 'बारिश',
+        snowy: 'बर्फबारी',
+        overcast: 'घना बादल',
+        windy: 'तेज़ हवा',
+      },
+
+      // Mood options
+      moodOptions: {
+        happy: 'खुश',
+        touched: 'भावुक',
+        peaceful: 'शांत',
+        excited: 'उत्साहित',
+        nostalgic: 'स्मृतिमय',
+        warm: 'सुकूनभरा',
+        surprised: 'आश्चर्यचकित',
+        sad: 'उदास',
+      },
+
+      // Alerts
+      alertTitleRequired: 'कृपया शीर्षक दर्ज करें',
+      alertDateRequired: 'कृपया तारीख चुनें',
+      alertSaveSuccess: 'याद सहेज ली गई',
+      alertSaveFailed: 'सहेजना विफल हुआ',
+      alertImagePickFailed: 'चित्र चुनना विफल हुआ',
+      alertAudioPickFailed: 'ऑडियो चुनना विफल हुआ',
+    },
+
+    // Memory Detail
+    memoryDetail: {
+      notFound: 'याद नहीं मिली',
+      playAudio: 'ऑडियो चलाएं',
+      pauseAudio: 'ऑडियो रोकें',
+    },
+
+    // Language
+    language: {
+      current: 'हिन्दी',
       switchTo: '中文',
     },
   },
 };
 
-export type Language = 'zh' | 'en';
+export type Language = 'zh' | 'en' | 'hi';
 export type TranslationKey = keyof typeof translations.zh;
 
 // 天气翻译映射（数据库存储中文，需要翻译）
-export const weatherTranslations: Record<string, { zh: string; en: string }> = {
-  '晴天': { zh: '晴天', en: 'Sunny' },
-  '多云': { zh: '多云', en: 'Cloudy' },
-  '雨天': { zh: '雨天', en: 'Rainy' },
-  '雪天': { zh: '雪天', en: 'Snowy' },
-  '阴天': { zh: '阴天', en: 'Overcast' },
-  '大风': { zh: '大风', en: 'Windy' },
-  'Sunny': { zh: '晴天', en: 'Sunny' },
-  'Cloudy': { zh: '多云', en: 'Cloudy' },
-  'Rainy': { zh: '雨天', en: 'Rainy' },
-  'Snowy': { zh: '雪天', en: 'Snowy' },
-  'Overcast': { zh: '阴天', en: 'Overcast' },
-  'Windy': { zh: '大风', en: 'Windy' },
+export const weatherTranslations: Record<string, { zh: string; en: string; hi: string }> = {
+  '晴天': { zh: '晴天', en: 'Sunny', hi: 'धूप' },
+  '多云': { zh: '多云', en: 'Cloudy', hi: 'बादल' },
+  '雨天': { zh: '雨天', en: 'Rainy', hi: 'बारिश' },
+  '雪天': { zh: '雪天', en: 'Snowy', hi: 'बर्फबारी' },
+  '阴天': { zh: '阴天', en: 'Overcast', hi: 'घना बादल' },
+  '大风': { zh: '大风', en: 'Windy', hi: 'तेज़ हवा' },
+  Sunny: { zh: '晴天', en: 'Sunny', hi: 'धूप' },
+  Cloudy: { zh: '多云', en: 'Cloudy', hi: 'बादल' },
+  Rainy: { zh: '雨天', en: 'Rainy', hi: 'बारिश' },
+  Snowy: { zh: '雪天', en: 'Snowy', hi: 'बर्फबारी' },
+  Overcast: { zh: '阴天', en: 'Overcast', hi: 'घना बादल' },
+  Windy: { zh: '大风', en: 'Windy', hi: 'तेज़ हवा' },
+  'धूप': { zh: '晴天', en: 'Sunny', hi: 'धूप' },
+  'बादल': { zh: '多云', en: 'Cloudy', hi: 'बादल' },
+  'बारिश': { zh: '雨天', en: 'Rainy', hi: 'बारिश' },
+  'बर्फबारी': { zh: '雪天', en: 'Snowy', hi: 'बर्फबारी' },
+  'घना बादल': { zh: '阴天', en: 'Overcast', hi: 'घना बादल' },
+  'तेज़ हवा': { zh: '大风', en: 'Windy', hi: 'तेज़ हवा' },
 };
 
 // 心情翻译映射
-export const moodTranslations: Record<string, { zh: string; en: string }> = {
-  '开心': { zh: '开心', en: 'Happy' },
-  '感动': { zh: '感动', en: 'Touched' },
-  '平静': { zh: '平静', en: 'Peaceful' },
-  '兴奋': { zh: '兴奋', en: 'Excited' },
-  '怀念': { zh: '怀念', en: 'Nostalgic' },
-  '温馨': { zh: '温馨', en: 'Warm' },
-  '惊喜': { zh: '惊喜', en: 'Surprised' },
-  '忧伤': { zh: '忧伤', en: 'Sad' },
-  'Happy': { zh: '开心', en: 'Happy' },
-  'Touched': { zh: '感动', en: 'Touched' },
-  'Peaceful': { zh: '平静', en: 'Peaceful' },
-  'Excited': { zh: '兴奋', en: 'Excited' },
-  'Nostalgic': { zh: '怀念', en: 'Nostalgic' },
-  'Warm': { zh: '温馨', en: 'Warm' },
-  'Surprised': { zh: '惊喜', en: 'Surprised' },
-  'Sad': { zh: '忧伤', en: 'Sad' },
+export const moodTranslations: Record<string, { zh: string; en: string; hi: string }> = {
+  '开心': { zh: '开心', en: 'Happy', hi: 'खुश' },
+  '感动': { zh: '感动', en: 'Touched', hi: 'भावुक' },
+  '平静': { zh: '平静', en: 'Peaceful', hi: 'शांत' },
+  '兴奋': { zh: '兴奋', en: 'Excited', hi: 'उत्साहित' },
+  '怀念': { zh: '怀念', en: 'Nostalgic', hi: 'स्मृतिमय' },
+  '温馨': { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा' },
+  '惊喜': { zh: '惊喜', en: 'Surprised', hi: 'आश्चर्यचकित' },
+  '忧伤': { zh: '忧伤', en: 'Sad', hi: 'उदास' },
+  Happy: { zh: '开心', en: 'Happy', hi: 'खुश' },
+  Touched: { zh: '感动', en: 'Touched', hi: 'भावुक' },
+  Peaceful: { zh: '平静', en: 'Peaceful', hi: 'शांत' },
+  Excited: { zh: '兴奋', en: 'Excited', hi: 'उत्साहित' },
+  Nostalgic: { zh: '怀念', en: 'Nostalgic', hi: 'स्मृतिमय' },
+  Warm: { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा' },
+  Surprised: { zh: '惊喜', en: 'Surprised', hi: 'आश्चर्यचकित' },
+  Sad: { zh: '忧伤', en: 'Sad', hi: 'उदास' },
+  'खुश': { zh: '开心', en: 'Happy', hi: 'खुश' },
+  'भावुक': { zh: '感动', en: 'Touched', hi: 'भावुक' },
+  'शांत': { zh: '平静', en: 'Peaceful', hi: 'शांत' },
+  'उत्साहित': { zh: '兴奋', en: 'Excited', hi: 'उत्साहित' },
+  'स्मृतिमय': { zh: '怀念', en: 'Nostalgic', hi: 'स्मृतिमय' },
+  'सुकूनभरा': { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा' },
+  'आश्चर्यचकित': { zh: '惊喜', en: 'Surprised', hi: 'आश्चर्यचकित' },
+  'उदास': { zh: '忧伤', en: 'Sad', hi: 'उदास' },
 };
