@@ -32,7 +32,7 @@ interface MediaFile {
 
 export default function AddMemoryScreen() {
   const router = useSafeRouter();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
 
   // 表单数据
@@ -46,18 +46,12 @@ export default function AddMemoryScreen() {
 
   // 获取天气选项
   const getWeatherOptions = () => {
-    const options = t.addMemory.weatherOptions;
-    return language === 'zh' 
-      ? ['晴天', '多云', '雨天', '雪天', '阴天', '大风']
-      : ['Sunny', 'Cloudy', 'Rainy', 'Snowy', 'Overcast', 'Windy'];
+    return Object.values(t.addMemory.weatherOptions);
   };
 
   // 获取心情选项
   const getMoodOptions = () => {
-    const options = t.addMemory.moodOptions;
-    return language === 'zh'
-      ? ['开心', '感动', '平静', '兴奋', '怀念', '温馨', '惊喜', '忧伤']
-      : ['Happy', 'Touched', 'Peaceful', 'Excited', 'Nostalgic', 'Warm', 'Surprised', 'Sad'];
+    return Object.values(t.addMemory.moodOptions);
   };
 
   const pickImage = async () => {
