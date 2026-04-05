@@ -29,6 +29,17 @@
 ├── .cozeproj                   # 预置脚手架脚本（禁止修改）
 └── .coze                       # 配置文件（禁止修改）
 
+## Git 分支（给 Cursor / 云端 Agent）
+
+为避免每次改代码都新建 `cursor/...` 分支、减少无关分支与 token 消耗，请遵守：
+
+1. **日常开发只用一个长期分支**：优先在 **`dev`** 上直接提交并推送（若仓库尚无 `dev`，由维护者从 `main` 创建并 `git push -u origin dev`）。
+2. **不要**自动新建 `cursor/*`、`*-bc-*` 等一次性分支，除非用户在对话里**明确要求**开新分支或发 PR。
+3. 功能合并到 `main` 的方式：在 **`dev`** 上完成开发与推送 → 再向 **`main`** 发 PR 或由维护者合并；避免每个小改动都新开分支。
+4. Cursor Cloud / Dashboard 里若可配置 **Base branch / 默认分支**，请设为 **`dev`**（若团队仍以 `main` 为唯一开发分支，则设为 `main` 并同样**不要**为每次任务新建分支）。
+
+说明：云端是否遵守依赖 Cursor 产品行为；若仍自动建分支，可到 [Cursor 论坛相关讨论](https://forum.cursor.com/t/how-to-stop-agents-creating-branches-when-using-commit-and-push/156625) 跟进设置与 bug 修复。已合并的 `cursor/*` 可在 GitHub 上删除以减负。
+
 ## 样式方案
 
 基于 tailwindcss 进行样式开发（底层基于 Uniwind）
