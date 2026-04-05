@@ -7,7 +7,7 @@ mkdir -p "$LOG_DIR"
 # ==================== 配置项 ====================
 # Server 服务配置
 SERVER_HOST="0.0.0.0"
-SERVER_PORT="9091"
+SERVER_PORT="19091"
 # Expo 项目配置
 EXPO_HOST="0.0.0.0"
 EXPO_DIR="expo"

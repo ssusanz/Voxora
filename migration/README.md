@@ -34,7 +34,8 @@ const data = JSON.parse(fs.readFileSync('./memories_data.json', 'utf8'));
 
 async function importData() {
   for (const memory of data) {
-    await fetch('http://localhost:9091/api/v1/memories', {
+    // 在运行该脚本的机器上直连本机 API；端口与仓库 server 默认 19091 一致
+    await fetch('http://localhost:19091/api/v1/memories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

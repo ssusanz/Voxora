@@ -1,9 +1,11 @@
 import { Platform } from 'react-native';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import { getBackendBaseUrl } from './backendBaseUrl';
+
 dayjs.extend(utc);
 
-const API_BASE = (process.env.EXPO_PUBLIC_API_BASE ?? '').replace(/\/$/, '');
+const API_BASE = getBackendBaseUrl().replace(/\/$/, '');
 
 /**
  * 创建跨平台兼容的文件对象，用于 FormData.append()

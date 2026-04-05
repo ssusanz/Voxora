@@ -27,9 +27,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Video, ResizeMode, Audio, AVPlaybackStatus } from 'expo-av';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getBackendBaseUrl, resolveBackendMediaUrl } from '@/utils/backendBaseUrl';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
 
 interface Memory {
   id: number;
@@ -86,13 +86,26 @@ export default function MemoryDetailScreen() {
        * 接口：GET /api/v1/memories/:id
        * Path 参数：id: number
        */
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${id}`);
+      const url = `${getBackendBaseUrl()}/api/v1/memories/${id}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const bodyPreview = await response.text().catch(() => '');
+        console.error('[memories] GET /api/v1/memories/:id failed', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          bodyPreview: bodyPreview.slice(0, 300),
+        });
+        return;
+      }
       const result = await response.json();
       if (result.success) {
         setMemory(result.data);
+      } else {
+        console.error('[memories] API returned success=false', { url, result });
       }
     } catch (error) {
-      console.error('Failed to fetch memory detail:', error);
+      console.error('[memories] GET /api/v1/memories/:id network or parse error:', error);
     } finally {
       setLoading(false);
     }
@@ -153,9 +166,10 @@ export default function MemoryDetailScreen() {
         await soundRef.current.pauseAsync();
         setIsPlaying(false);
       } else if (memory?.audio_url) {
+        const audioUri = resolveBackendMediaUrl(memory.audio_url) ?? memory.audio_url;
         if (!soundRef.current) {
           const { sound } = await Audio.Sound.createAsync(
-            { uri: memory.audio_url },
+            { uri: audioUri },
             { shouldPlay: true }
           );
           soundRef.current = sound;
@@ -280,13 +294,14 @@ export default function MemoryDetailScreen() {
           {memory.media_urls.map((url, index) => {
             // 判断是图片还是视频
             const isVideo = url.includes('.mp4') || url.includes('.mov');
+            const mediaUri = resolveBackendMediaUrl(url) ?? url;
 
             if (isVideo) {
               return (
                 <View key={index} style={styles.mediaItem}>
                   <Video
                     ref={videoRef}
-                    source={{ uri: url }}
+                    source={{ uri: mediaUri }}
                     style={styles.video}
                     resizeMode={ResizeMode.COVER}
                     useNativeControls
@@ -299,7 +314,7 @@ export default function MemoryDetailScreen() {
             return (
               <View key={index} style={styles.mediaItem}>
                 <Image
-                  source={{ uri: url }}
+                  source={{ uri: mediaUri }}
                   style={styles.image}
                   resizeMode="cover"
                 />

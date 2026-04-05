@@ -4,7 +4,8 @@ import memoriesRouter from "./routes/memories";
 import uploadRouter from "./routes/upload";
 
 const app = express();
-const port = process.env.PORT || 9091;
+/** 与 start_voxora_clean_dev.sh 的 BACKEND_PORT、client 中 API 端口一致 */
+const port = Number(process.env.PORT) || 19091;
 
 // Middleware
 app.use(cors());
@@ -20,6 +21,6 @@ app.get('/api/v1/health', (req, res) => {
 app.use('/api/v1/memories', memoriesRouter);
 app.use('/api/v1/upload', uploadRouter);
 
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}/`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server listening at http://0.0.0.0:${port}/`);
 });

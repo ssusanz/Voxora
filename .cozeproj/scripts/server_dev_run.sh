@@ -4,7 +4,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 SERVER_DIR="$ROOT_DIR/server"
 LOG_DIR="${COZE_LOG_DIR:-$ROOT_DIR/logs}"
 LOG_SERVER_FILE="$LOG_DIR/server.log"
-SERVER_PORT="${SERVER_PORT:-9091}"
+SERVER_PORT="${SERVER_PORT:-19091}"
 
 mkdir -p "$LOG_DIR"
 

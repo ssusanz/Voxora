@@ -22,12 +22,20 @@ const WebOnlyColorSchemeUpdater = function ({ children }: { children?: ReactNode
       }
     }
 
-    if (Platform.OS === 'web') {
+    if (
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      typeof window.addEventListener === 'function'
+    ) {
       window.addEventListener('message', handleMessage, false);
     }
 
     return () => {
-      if (Platform.OS === 'web') {
+      if (
+        Platform.OS === 'web' &&
+        typeof window !== 'undefined' &&
+        typeof window.removeEventListener === 'function'
+      ) {
         window.removeEventListener('message', handleMessage, false);
       }
     }

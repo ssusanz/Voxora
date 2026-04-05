@@ -1,9 +1,97 @@
 diff --git a/src/async-require/hmr.ts b/src/async-require/hmr.ts
-index 33ce50ee2950c40d2b0553b148710f1e24e44f3d..3d78cb02dd7e96ac9727a2935d8178f2c7e95982 100644
+index 33ce50ee2950c40d2b0553b148710f1e24e44f3d..1111111111111111111111111111111111111111 100644
 --- a/src/async-require/hmr.ts
 +++ b/src/async-require/hmr.ts
-@@ -216,6 +216,40 @@ const HMRClient: HMRClientNativeInterface = {
-
+@@ -10,7 +10,7 @@
+  */
+ import MetroHMRClient from '@expo/metro/metro-runtime/modules/HMRClient';
+ import prettyFormat, { plugins } from 'pretty-format';
+-import { DeviceEventEmitter } from 'react-native';
++import { DeviceEventEmitter, NativeModules } from 'react-native';
+ 
+ // Ensure events are sent so custom Fast Refresh views are shown.
+ function showLoading(message: string, _type: 'load' | 'refresh') {
+@@ -157,17 +157,64 @@
+   setup({ isEnabled }: { isEnabled: boolean }) {
+     assert(!hmrClient, 'Cannot initialize hmrClient twice');
+ 
+-    const serverScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+-    const client = new MetroHMRClient(`${serverScheme}://${window.location.host}/hot`);
++    // Hermes: bare `document` / `location` throw ReferenceError if not defined; use globalThis only.
++    const g = globalThis as typeof globalThis & {
++      window?: { location?: { protocol?: string; host?: string } };
++      location?: { href?: string };
++      document?: { currentScript?: unknown } | null;
++    };
++    const win = g.window;
++    const serverScheme = win?.location?.protocol === 'https:' ? 'wss' : 'ws';
++    const host =
++      typeof win?.location?.host === 'string' && win.location.host.length > 0
++        ? win.location.host
++        : 'localhost:8081';
++    const client = new MetroHMRClient(`${serverScheme}://${host}/hot`);
+     hmrClient = client;
+ 
+     const fullBundleUrl = (() => {
+-      const currentScript = document?.currentScript;
++      // Native: real bundle URL includes a non-empty path (Metro / jsc-safe-url reject `http://host:8081/?platform=ios`).
++      const scriptURL = (NativeModules as { SourceCode?: { scriptURL?: string } })?.SourceCode
++        ?.scriptURL;
++      if (typeof scriptURL === 'string' && /^https?:\/\//i.test(scriptURL)) {
++        const bundleUrl = new URL(scriptURL);
++        if (!bundleUrl.searchParams.has('platform')) {
++          bundleUrl.searchParams.set('platform', process.env.EXPO_OS ?? 'web');
++        }
++        return bundleUrl.toString();
++      }
++
++      const doc = g.document;
++      const currentScript =
++        doc && typeof doc === 'object' && doc !== null && 'currentScript' in doc
++          ? (doc as { currentScript?: unknown }).currentScript
++          : undefined;
++      let locHref =
++        g.location && typeof g.location.href === 'string' ? g.location.href : `http://${host}/`;
++      try {
++        const base = new URL(locHref);
++        if (base.pathname === '/' || base.pathname === '') {
++          base.pathname = '/index.bundle';
++          locHref = base.toString();
++        }
++      } catch {
++        locHref = `http://${host}/index.bundle`;
++      }
++
+       const bundleUrl = new URL(
+-        currentScript && 'src' in currentScript ? currentScript.src : location.href,
+-        location.href
++        currentScript &&
++          typeof currentScript === 'object' &&
++          currentScript !== null &&
++          'src' in currentScript
++          ? String((currentScript as { src: string }).src)
++          : locHref,
++        locHref
+       );
+ 
++      if (bundleUrl.pathname === '/' || bundleUrl.pathname === '') {
++        bundleUrl.pathname = '/index.bundle';
++      }
++
+       if (!bundleUrl.searchParams.has('platform')) {
+         bundleUrl.searchParams.set('platform', process.env.EXPO_OS ?? 'web');
+       }
+@@ -189,7 +236,7 @@
+  - Ensure the Metro dev server is running and available on the same network as this device`;
+       error += `
+  
+- URL: ${window.location.host}
++ URL: ${host}
+  
+  Error: ${e.message}`;
+ 
+@@ -216,6 +263,40 @@
+ 
      client.on('update-done', () => {
        hideLoading();
 +      if (process.env.EXPO_PUBLIC_COZE_PROJECT_ID && typeof window !== 'undefined' && window.location) {
@@ -41,5 +129,17 @@ index 33ce50ee2950c40d2b0553b148710f1e24e44f3d..3d78cb02dd7e96ac9727a2935d8178f2
 +      }
 +      console.log('[HMR] Update done.');
      });
-
+ 
      client.on('error', (data: { type: string; message: string }) => {
+@@ -289,7 +370,10 @@
+ function registerBundleEntryPoints(client: HMRClientType | null) {
+   if (hmrUnavailableReason != null) {
+     // "Bundle Splitting – Metro disconnected"
+-    window.location.reload();
++    const loc = (globalThis as { location?: { reload?: () => void } }).location;
++    if (loc && typeof loc.reload === 'function') {
++      loc.reload();
++    }
+     return;
+   }
+ 

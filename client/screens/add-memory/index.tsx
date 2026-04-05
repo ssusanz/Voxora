@@ -22,8 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { createFormDataFile } from '@/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+import { getBackendBaseUrl } from '@/utils/backendBaseUrl';
 
 interface MediaFile {
   uri: string;
@@ -128,10 +127,22 @@ export default function AddMemoryScreen() {
        * 接口：POST /api/v1/upload
        * FormData 参数：file: File
        */
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/upload`, {
+      const uploadUrl = `${getBackendBaseUrl()}/api/v1/upload`;
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       });
+
+      if (!response.ok) {
+        const bodyPreview = await response.text().catch(() => '');
+        console.error('[upload] POST /api/v1/upload failed', {
+          uploadUrl,
+          status: response.status,
+          statusText: response.statusText,
+          bodyPreview: bodyPreview.slice(0, 300),
+        });
+        continue;
+      }
 
       const result = await response.json();
       if (result.success) {
@@ -145,14 +156,25 @@ export default function AddMemoryScreen() {
       const formDataFile = await createFormDataFile(audioFile.uri, audioFile.name, audioFile.type);
       formData.append('file', formDataFile as any);
 
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/upload`, {
+      const uploadUrl = `${getBackendBaseUrl()}/api/v1/upload`;
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       });
 
-      const result = await response.json();
-      if (result.success) {
-        audioKey = result.data.key;
+      if (!response.ok) {
+        const bodyPreview = await response.text().catch(() => '');
+        console.error('[upload] POST /api/v1/upload (audio) failed', {
+          uploadUrl,
+          status: response.status,
+          statusText: response.statusText,
+          bodyPreview: bodyPreview.slice(0, 300),
+        });
+      } else {
+        const result = await response.json();
+        if (result.success) {
+          audioKey = result.data.key;
+        }
       }
     }
 
@@ -181,7 +203,8 @@ export default function AddMemoryScreen() {
        * 接口：POST /api/v1/memories
        * Body 参数：title: string, memory_date: string, location?: string, weather?: string, mood?: string, media_keys?: string[], audio_key?: string
        */
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories`, {
+      const postUrl = `${getBackendBaseUrl()}/api/v1/memories`;
+      const response = await fetch(postUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,12 +218,25 @@ export default function AddMemoryScreen() {
         }),
       });
 
+      if (!response.ok) {
+        const bodyPreview = await response.text().catch(() => '');
+        console.error('[memories] POST /api/v1/memories failed', {
+          postUrl,
+          status: response.status,
+          statusText: response.statusText,
+          bodyPreview: bodyPreview.slice(0, 300),
+        });
+        Alert.alert(t.error, t.addMemory.alertSaveFailed);
+        return;
+      }
+
       const result = await response.json();
       if (result.success) {
         Alert.alert(t.success, t.addMemory.alertSaveSuccess, [
           { text: t.confirm, onPress: () => router.back() },
         ]);
       } else {
+        console.error('[memories] POST /api/v1/memories success=false', { postUrl, result });
         Alert.alert(t.error, result.error || t.addMemory.alertSaveFailed);
       }
     } catch (error) {

@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const { getDefaultConfig } = require('expo/metro-config');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const connect = require('connect');
@@ -32,7 +34,8 @@ config.resolver.blockList = [
   /.*node_modules\/\.pnpm\/.*_tmp_\d+.*/,
 ];
 
-const BACKEND_TARGET = 'http://localhost:9091';
+// Web 开发时代理到「跑在本机的」后端，用内网 IP（与 start_voxora_clean_dev.sh 的 LAN_IP 一致）
+const BACKEND_TARGET = 'http://192.168.1.13:19091';
 
 const apiProxy = createProxyMiddleware({
   target: BACKEND_TARGET,
@@ -122,10 +125,37 @@ config.server = {
   },
 };
 
-module.exports = withUniwindConfig(config, {
+const finalConfig = withUniwindConfig(config, {
   // relative path to your global.css file
   cssEntryFile: './global.css',
   // (optional) path where we gonna auto-generate typings
   // defaults to project's root
-  dtsFile: './uniwind-types.d.ts'
+  dtsFile: './uniwind-types.d.ts',
 });
+
+const repoRoot = path.resolve(__dirname, '..');
+finalConfig.watchFolders = [...new Set([...(finalConfig.watchFolders || []), repoRoot])];
+
+// HMR 在 monorepo 下会把入口登记为「仓库根」的 `./index`（origin 形如 .../Voxora/.），
+// 默认 resolver 找不到根目录的 index.js；显式指到 ../index.js。
+const rootIndexJs = path.join(repoRoot, 'index.js');
+const upstreamResolveRequest = finalConfig.resolver.resolveRequest;
+finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === './index' && context.originModulePath) {
+    const origin = path.normalize(context.originModulePath);
+    const stripped = origin.replace(/[/\\]\.$/, '');
+    const fromMonorepoRoot =
+      stripped === repoRoot ||
+      origin === path.join(repoRoot, '.') ||
+      path.dirname(origin) === repoRoot;
+    if (fromMonorepoRoot && fs.existsSync(rootIndexJs)) {
+      return { type: 'sourceFile', filePath: rootIndexJs };
+    }
+  }
+  if (upstreamResolveRequest) {
+    return upstreamResolveRequest(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
+module.exports = finalConfig;

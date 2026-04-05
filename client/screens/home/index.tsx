@@ -15,8 +15,7 @@ import { Screen } from '@/components/Screen';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+import { getBackendBaseUrl, resolveBackendMediaUrl } from '@/utils/backendBaseUrl';
 
 interface Memory {
   id: number;
@@ -43,13 +42,26 @@ export default function HomeScreen() {
        * 接口：GET /api/v1/memories
        * 无参数
        */
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories`);
+      const url = `${getBackendBaseUrl()}/api/v1/memories`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const bodyPreview = await response.text().catch(() => '');
+        console.error('[memories] GET /api/v1/memories failed', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          bodyPreview: bodyPreview.slice(0, 300),
+        });
+        return;
+      }
       const result = await response.json();
       if (result.success) {
         setMemories(result.data);
+      } else {
+        console.error('[memories] API returned success=false', { url, result });
       }
     } catch (error) {
-      console.error('Failed to fetch memories:', error);
+      console.error('[memories] GET /api/v1/memories network or parse error:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -154,8 +166,13 @@ export default function HomeScreen() {
             <Text style={styles.emptySubtext}>{t.home.emptySubtitle}</Text>
           </View>
         ) : (
-          memories.map((memory, index) => (
-            <View key={memory.id} style={styles.timelineItem}>
+          memories.map((memory, index) => {
+            const thumbUri =
+              memory.media_urls && memory.media_urls.length > 0
+                ? resolveBackendMediaUrl(memory.media_urls[0])
+                : undefined;
+            return (
+            <View key={`memory-${memory.id}-${index}`} style={styles.timelineItem}>
               {/* 时间轴线 */}
               <View style={styles.timelineLeft}>
                 <View style={styles.timelineDot}>
@@ -174,13 +191,13 @@ export default function HomeScreen() {
                 activeOpacity={0.8}
               >
                 {/* 照片 */}
-                {memory.media_urls && memory.media_urls.length > 0 && (
+                {thumbUri ? (
                   <Image
-                    source={{ uri: memory.media_urls[0] }}
+                    source={{ uri: thumbUri }}
                     style={styles.memoryImage}
                     resizeMode="cover"
                   />
-                )}
+                ) : null}
 
                 {/* 内容 */}
                 <View style={styles.memoryContent}>
@@ -216,7 +233,8 @@ export default function HomeScreen() {
                 </View>
               </TouchableOpacity>
             </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
