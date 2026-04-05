@@ -76,4 +76,5 @@ echo "========================================================="
 echo ""
 
 cd "$CLIENT_DIR"
-pnpm exec expo start --lan --port "$METRO_PORT" --clear
+# 调试定版：缺省 development build；要用 Expo Go 时在 Metro 终端按 s
+pnpm exec expo start --lan --dev-client --port "$METRO_PORT" --clear
