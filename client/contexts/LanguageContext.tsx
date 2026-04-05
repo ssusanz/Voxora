@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { translations, Language, weatherTranslations, moodTranslations } from '@/i18n/translations';
+import {
+  translations,
+  Language,
+  weatherTranslations,
+  moodTranslations,
+  supportedLanguages,
+} from '@/i18n/translations';
 
 interface LanguageContextType {
   language: Language;
@@ -18,12 +24,15 @@ const LANGUAGE_STORAGE_KEY = '@voxora_language';
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>('zh');
 
+  const isLanguage = (value: string): value is Language =>
+    supportedLanguages.includes(value as Language);
+
   useEffect(() => {
     // Load saved language preference
     const loadLanguage = async () => {
       try {
         const savedLang = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-        if (savedLang === 'zh' || savedLang === 'en') {
+        if (savedLang && isLanguage(savedLang)) {
           setLanguageState(savedLang);
         }
       } catch (error) {
@@ -43,7 +52,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleLanguage = useCallback(() => {
-    const newLang = language === 'zh' ? 'en' : 'zh';
+    const currentIndex = supportedLanguages.indexOf(language);
+    const nextIndex = (currentIndex + 1) % supportedLanguages.length;
+    const newLang = supportedLanguages[nextIndex];
     setLanguage(newLang);
   }, [language, setLanguage]);
 
