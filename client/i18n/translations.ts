@@ -244,60 +244,157 @@ export const translations = {
     // Language
     language: {
       current: 'हिन्दी',
+      switchTo: '日本語',
+    },
+  },
+
+  ja: {
+    // Common
+    appName: 'Voxora',
+    loading: '思い出を読み込み中...',
+    error: 'エラー',
+    success: '成功',
+    confirm: 'OK',
+    cancel: 'キャンセル',
+    save: '保存',
+    delete: '削除',
+
+    // Home
+    home: {
+      subtitle: '大切な思い出を記録',
+      emptyTitle: 'まだ思い出がありません',
+      emptySubtitle: '下のボタンをタップして始めましょう',
+      refresh: '更新',
+    },
+
+    // Add Memory
+    addMemory: {
+      title: '思い出を追加',
+      titleLabel: '思い出のタイトル',
+      titlePlaceholder: 'この思い出に名前を付ける',
+      titleLabelRequired: '思い出のタイトル *',
+      dateLabel: '日付',
+      dateLabelRequired: '日付 *',
+      datePlaceholder: 'YYYY-MM-DD',
+      locationLabel: '場所',
+      locationPlaceholder: 'どこで',
+      weatherLabel: '天気',
+      moodLabel: '気分',
+      mediaLabel: '写真と動画',
+      audioLabel: '音声',
+      addMedia: '追加',
+      addAudio: '音声ファイルを追加',
+      saveButton: '思い出を保存',
+
+      // Weather options
+      weatherOptions: {
+        sunny: '晴れ',
+        cloudy: '曇り',
+        rainy: '雨',
+        snowy: '雪',
+        overcast: '曇天',
+        windy: '強風',
+      },
+
+      // Mood options
+      moodOptions: {
+        happy: '嬉しい',
+        touched: '感動',
+        peaceful: '穏やか',
+        excited: 'ワクワク',
+        nostalgic: '懐かしい',
+        warm: '心温まる',
+        surprised: '驚き',
+        sad: '悲しい',
+      },
+
+      // Alerts
+      alertTitleRequired: 'タイトルを入力してください',
+      alertDateRequired: '日付を選択してください',
+      alertSaveSuccess: '思い出を保存しました',
+      alertSaveFailed: '保存に失敗しました',
+      alertImagePickFailed: '画像の選択に失敗しました',
+      alertAudioPickFailed: '音声の選択に失敗しました',
+    },
+
+    // Memory Detail
+    memoryDetail: {
+      notFound: '思い出が見つかりません',
+      playAudio: '音声を再生',
+      pauseAudio: '音声を一時停止',
+    },
+
+    // Language
+    language: {
+      current: '日本語',
       switchTo: '中文',
     },
   },
 };
 
-export type Language = 'zh' | 'en' | 'hi';
+export type Language = 'zh' | 'en' | 'hi' | 'ja';
 export type TranslationKey = keyof typeof translations.zh;
 
 // 天气翻译映射（数据库存储中文，需要翻译）
-export const weatherTranslations: Record<string, { zh: string; en: string; hi: string }> = {
-  '晴天': { zh: '晴天', en: 'Sunny', hi: 'धूप' },
-  '多云': { zh: '多云', en: 'Cloudy', hi: 'बादल' },
-  '雨天': { zh: '雨天', en: 'Rainy', hi: 'बारिश' },
-  '雪天': { zh: '雪天', en: 'Snowy', hi: 'बर्फ़' },
-  '阴天': { zh: '阴天', en: 'Overcast', hi: 'घना बादल' },
-  '大风': { zh: '大风', en: 'Windy', hi: 'हवादार' },
-  Sunny: { zh: '晴天', en: 'Sunny', hi: 'धूप' },
-  Cloudy: { zh: '多云', en: 'Cloudy', hi: 'बादल' },
-  Rainy: { zh: '雨天', en: 'Rainy', hi: 'बारिश' },
-  Snowy: { zh: '雪天', en: 'Snowy', hi: 'बर्फ़' },
-  Overcast: { zh: '阴天', en: 'Overcast', hi: 'घना बादल' },
-  Windy: { zh: '大风', en: 'Windy', hi: 'हवादार' },
-  'धूप': { zh: '晴天', en: 'Sunny', hi: 'धूप' },
-  'बादल': { zh: '多云', en: 'Cloudy', hi: 'बादल' },
-  'बारिश': { zh: '雨天', en: 'Rainy', hi: 'बारिश' },
-  'बर्फ़': { zh: '雪天', en: 'Snowy', hi: 'बर्फ़' },
-  'घना बादल': { zh: '阴天', en: 'Overcast', hi: 'घना बादल' },
-  'हवादार': { zh: '大风', en: 'Windy', hi: 'हवादार' },
+export const weatherTranslations: Record<string, { zh: string; en: string; hi: string; ja: string }> = {
+  '晴天': { zh: '晴天', en: 'Sunny', hi: 'धूप', ja: '晴れ' },
+  '多云': { zh: '多云', en: 'Cloudy', hi: 'बादल', ja: '曇り' },
+  '雨天': { zh: '雨天', en: 'Rainy', hi: 'बारिश', ja: '雨' },
+  '雪天': { zh: '雪天', en: 'Snowy', hi: 'बर्फ़', ja: '雪' },
+  '阴天': { zh: '阴天', en: 'Overcast', hi: 'घना बादल', ja: '曇天' },
+  '大风': { zh: '大风', en: 'Windy', hi: 'हवादार', ja: '強風' },
+  Sunny: { zh: '晴天', en: 'Sunny', hi: 'धूप', ja: '晴れ' },
+  Cloudy: { zh: '多云', en: 'Cloudy', hi: 'बादल', ja: '曇り' },
+  Rainy: { zh: '雨天', en: 'Rainy', hi: 'बारिश', ja: '雨' },
+  Snowy: { zh: '雪天', en: 'Snowy', hi: 'बर्फ़', ja: '雪' },
+  Overcast: { zh: '阴天', en: 'Overcast', hi: 'घना बादल', ja: '曇天' },
+  Windy: { zh: '大风', en: 'Windy', hi: 'हवादार', ja: '強風' },
+  'धूप': { zh: '晴天', en: 'Sunny', hi: 'धूप', ja: '晴れ' },
+  'बादल': { zh: '多云', en: 'Cloudy', hi: 'बादल', ja: '曇り' },
+  'बारिश': { zh: '雨天', en: 'Rainy', hi: 'बारिश', ja: '雨' },
+  'बर्फ़': { zh: '雪天', en: 'Snowy', hi: 'बर्फ़', ja: '雪' },
+  'घना बादल': { zh: '阴天', en: 'Overcast', hi: 'घना बादल', ja: '曇天' },
+  'हवादार': { zh: '大风', en: 'Windy', hi: 'हवादार', ja: '強風' },
+  '晴れ': { zh: '晴天', en: 'Sunny', hi: 'धूप', ja: '晴れ' },
+  '曇り': { zh: '多云', en: 'Cloudy', hi: 'बादल', ja: '曇り' },
+  '雨': { zh: '雨天', en: 'Rainy', hi: 'बारिश', ja: '雨' },
+  '雪': { zh: '雪天', en: 'Snowy', hi: 'बर्फ़', ja: '雪' },
+  '曇天': { zh: '阴天', en: 'Overcast', hi: 'घना बादल', ja: '曇天' },
+  '強風': { zh: '大风', en: 'Windy', hi: 'हवादार', ja: '強風' },
 };
 
 // 心情翻译映射
-export const moodTranslations: Record<string, { zh: string; en: string; hi: string }> = {
-  '开心': { zh: '开心', en: 'Happy', hi: 'खुश' },
-  '感动': { zh: '感动', en: 'Touched', hi: 'भावुक' },
-  '平静': { zh: '平静', en: 'Peaceful', hi: 'शांत' },
-  '兴奋': { zh: '兴奋', en: 'Excited', hi: 'उत्साहित' },
-  '怀念': { zh: '怀念', en: 'Nostalgic', hi: 'यादों में खोया' },
-  '温馨': { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा' },
-  '惊喜': { zh: '惊喜', en: 'Surprised', hi: 'हैरान' },
-  '忧伤': { zh: '忧伤', en: 'Sad', hi: 'उदास' },
-  Happy: { zh: '开心', en: 'Happy', hi: 'खुश' },
-  Touched: { zh: '感动', en: 'Touched', hi: 'भावुक' },
-  Peaceful: { zh: '平静', en: 'Peaceful', hi: 'शांत' },
-  Excited: { zh: '兴奋', en: 'Excited', hi: 'उत्साहित' },
-  Nostalgic: { zh: '怀念', en: 'Nostalgic', hi: 'यादों में खोया' },
-  Warm: { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा' },
-  Surprised: { zh: '惊喜', en: 'Surprised', hi: 'हैरान' },
-  Sad: { zh: '忧伤', en: 'Sad', hi: 'उदास' },
-  'खुश': { zh: '开心', en: 'Happy', hi: 'खुश' },
-  'भावुक': { zh: '感动', en: 'Touched', hi: 'भावुक' },
-  'शांत': { zh: '平静', en: 'Peaceful', hi: 'शांत' },
-  'उत्साहित': { zh: '兴奋', en: 'Excited', hi: 'उत्साहित' },
-  'यादों में खोया': { zh: '怀念', en: 'Nostalgic', hi: 'यादों में खोया' },
-  'सुकूनभरा': { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा' },
-  'हैरान': { zh: '惊喜', en: 'Surprised', hi: 'हैरान' },
-  'उदास': { zh: '忧伤', en: 'Sad', hi: 'उदास' },
+export const moodTranslations: Record<string, { zh: string; en: string; hi: string; ja: string }> = {
+  '开心': { zh: '开心', en: 'Happy', hi: 'खुश', ja: '嬉しい' },
+  '感动': { zh: '感动', en: 'Touched', hi: 'भावुक', ja: '感動' },
+  '平静': { zh: '平静', en: 'Peaceful', hi: 'शांत', ja: '穏やか' },
+  '兴奋': { zh: '兴奋', en: 'Excited', hi: 'उत्साहित', ja: 'ワクワク' },
+  '怀念': { zh: '怀念', en: 'Nostalgic', hi: 'यादों में खोया', ja: '懐かしい' },
+  '温馨': { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा', ja: '心温まる' },
+  '惊喜': { zh: '惊喜', en: 'Surprised', hi: 'हैरान', ja: '驚き' },
+  '忧伤': { zh: '忧伤', en: 'Sad', hi: 'उदास', ja: '悲しい' },
+  Happy: { zh: '开心', en: 'Happy', hi: 'खुश', ja: '嬉しい' },
+  Touched: { zh: '感动', en: 'Touched', hi: 'भावुक', ja: '感動' },
+  Peaceful: { zh: '平静', en: 'Peaceful', hi: 'शांत', ja: '穏やか' },
+  Excited: { zh: '兴奋', en: 'Excited', hi: 'उत्साहित', ja: 'ワクワク' },
+  Nostalgic: { zh: '怀念', en: 'Nostalgic', hi: 'यादों में खोया', ja: '懐かしい' },
+  Warm: { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा', ja: '心温まる' },
+  Surprised: { zh: '惊喜', en: 'Surprised', hi: 'हैरान', ja: '驚き' },
+  Sad: { zh: '忧伤', en: 'Sad', hi: 'उदास', ja: '悲しい' },
+  'खुश': { zh: '开心', en: 'Happy', hi: 'खुश', ja: '嬉しい' },
+  'भावुक': { zh: '感动', en: 'Touched', hi: 'भावुक', ja: '感動' },
+  'शांत': { zh: '平静', en: 'Peaceful', hi: 'शांत', ja: '穏やか' },
+  'उत्साहित': { zh: '兴奋', en: 'Excited', hi: 'उत्साहित', ja: 'ワクワク' },
+  'यादों में खोया': { zh: '怀念', en: 'Nostalgic', hi: 'यादों में खोया', ja: '懐かしい' },
+  'सुकूनभरा': { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा', ja: '心温まる' },
+  'हैरान': { zh: '惊喜', en: 'Surprised', hi: 'हैरान', ja: '驚き' },
+  'उदास': { zh: '忧伤', en: 'Sad', hi: 'उदास', ja: '悲しい' },
+  '嬉しい': { zh: '开心', en: 'Happy', hi: 'खुश', ja: '嬉しい' },
+  '感動': { zh: '感动', en: 'Touched', hi: 'भावुक', ja: '感動' },
+  '穏やか': { zh: '平静', en: 'Peaceful', hi: 'शांत', ja: '穏やか' },
+  'ワクワク': { zh: '兴奋', en: 'Excited', hi: 'उत्साहित', ja: 'ワクワク' },
+  '懐かしい': { zh: '怀念', en: 'Nostalgic', hi: 'यादों में खोया', ja: '懐かしい' },
+  '心温まる': { zh: '温馨', en: 'Warm', hi: 'सुकूनभरा', ja: '心温まる' },
+  '驚き': { zh: '惊喜', en: 'Surprised', hi: 'हैरान', ja: '驚き' },
+  '悲しい': { zh: '忧伤', en: 'Sad', hi: 'उदास', ja: '悲しい' },
 };

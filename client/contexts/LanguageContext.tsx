@@ -23,7 +23,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const loadLanguage = async () => {
       try {
         const savedLang = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-        if (savedLang === 'zh' || savedLang === 'en' || savedLang === 'hi') {
+        if (savedLang === 'zh' || savedLang === 'en' || savedLang === 'hi' || savedLang === 'ja') {
           setLanguageState(savedLang);
         }
       } catch (error) {
@@ -43,7 +43,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleLanguage = useCallback(() => {
-    const newLang = language === 'zh' ? 'en' : language === 'en' ? 'hi' : 'zh';
+    const newLang = language === 'zh' ? 'en' : language === 'en' ? 'hi' : language === 'hi' ? 'ja' : 'zh';
     setLanguage(newLang);
   }, [language, setLanguage]);
 

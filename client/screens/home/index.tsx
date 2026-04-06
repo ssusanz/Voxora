@@ -89,7 +89,8 @@ export default function HomeScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    const locale = language === 'zh' ? 'zh-CN' : language === 'hi' ? 'hi-IN' : 'en-US';
+    const locale =
+      language === 'zh' ? 'zh-CN' : language === 'hi' ? 'hi-IN' : language === 'ja' ? 'ja-JP' : 'en-US';
     return date.toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
