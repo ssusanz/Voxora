@@ -6,10 +6,8 @@ import Animated, {
   withSpring,
   withSequence,
   withTiming,
-  withRepeat,
   withDelay,
   Easing,
-  runOnJS
 } from 'react-native-reanimated';
 import { useState, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,14 +46,17 @@ interface PetOverlayProps {
 
 export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOverlayProps) {
   const insets = useSafeAreaInsets();
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // 动画状态
   const scale = useSharedValue(1);
-  const translateY = useSharedValue(0);
-  const rotate = useSharedValue(0);
   const bounceValue = useSharedValue(0);
   
-  // 交互反馈
+  // 展开动画
+  const cardWidth = useSharedValue(70);
+  const cardOpacity = useSharedValue(1);
+  
+  // 反应动画
   const [showReaction, setShowReaction] = useState(false);
   const [reactionType, setReactionType] = useState<'heart' | 'star' | 'sparkle'>('heart');
   const reactionScale = useSharedValue(0);
@@ -64,36 +65,26 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
 
   // 待机动画
   const startIdleAnimation = useCallback(() => {
-    bounceValue.value = withRepeat(
-      withSequence(
-        withTiming(-8, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1
+    bounceValue.value = withSequence(
+      withTiming(-6, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.ease) })
     );
   }, []);
 
-  // 点击交互
+  // 点击交互 - 切换展开/收起
   const handlePress = useCallback(() => {
-    // 点击缩放动画
-    scale.value = withSequence(
-      withTiming(0.85, { duration: 100 }),
-      withSpring(1.1, { damping: 8 }),
-      withSpring(1, { damping: 10 })
-    );
+    const newExpanded = !isExpanded;
+    setIsExpanded(newExpanded);
     
-    // 旋转动画
-    rotate.value = withSequence(
-      withTiming(-10, { duration: 100 }),
-      withSpring(10, { damping: 5 }),
-      withSpring(0, { damping: 10 })
-    );
-    
-    // 上下弹跳
-    translateY.value = withSequence(
-      withTiming(-20, { duration: 150 }),
-      withSpring(0, { damping: 6 })
-    );
+    if (newExpanded) {
+      // 展开动画
+      scale.value = withSpring(1.05, { damping: 12 });
+      cardWidth.value = withSpring(200, { damping: 15 });
+    } else {
+      // 收起动画
+      scale.value = withSpring(1, { damping: 12 });
+      cardWidth.value = withSpring(70, { damping: 15 });
+    }
     
     // 显示反应动画
     const reactions: ('heart' | 'star' | 'sparkle')[] = ['heart', 'star', 'sparkle'];
@@ -110,7 +101,7 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
       withTiming(1, { duration: 300 })
     );
     
-    reactionTranslateY.value = withTiming(-60, { duration: 800, easing: Easing.out(Easing.ease) });
+    reactionTranslateY.value = withTiming(-50, { duration: 800, easing: Easing.out(Easing.ease) });
     reactionOpacity.value = withSequence(
       withTiming(1, { duration: 100 }),
       withDelay(400, withTiming(0, { duration: 300 }))
@@ -118,36 +109,16 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
     
     setTimeout(() => setShowReaction(false), 800);
     
-    // 调用外部回调
     if (onPetClick) {
       onPetClick();
     }
-  }, [onPetClick]);
+  }, [isExpanded, onPetClick]);
 
-  // 长按交互
-  const handleLongPress = useCallback(() => {
-    // 开心旋转动画
-    scale.value = withSequence(
-      withSpring(1.3, { damping: 6 }),
-      withRepeat(
-        withSequence(
-          withTiming(-15, { duration: 150 }),
-          withTiming(15, { duration: 150 })
-        ),
-        3
-      ),
-      withSpring(1, { damping: 10 })
-    );
-    
-    rotate.value = 0;
-  }, []);
-
-  // 宠物容器动画样式
+  // 猫咪容器动画
   const petAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
-      { scale: scale.value },
-      { translateY: translateY.value + bounceValue.value },
-      { rotate: `${rotate.value}deg` },
+      { scale: scale.value * (1 + bounceValue.value * 0.01) },
+      { translateY: bounceValue.value },
     ],
   }));
 
@@ -160,28 +131,6 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
     opacity: reactionOpacity.value,
   }));
 
-  // 获取心情图标
-  const getMoodIcon = (): keyof typeof Ionicons.glyphMap => {
-    switch (petData.mood) {
-      case 'happy': return 'star';
-      case 'excited': return 'sparkles';
-      case 'sleepy': return 'moon';
-      case 'hungry': return 'leaf';
-      default: return 'star';
-    }
-  };
-
-  // 获取心情颜色
-  const getMoodColor = (): string => {
-    switch (petData.mood) {
-      case 'happy': return '#FFD700';
-      case 'excited': return '#FF7B8A';
-      case 'sleepy': return '#9E9E9E';
-      case 'hungry': return '#4CAF50';
-      default: return '#FFD700';
-    }
-  };
-
   // 获取心情文字
   const getMoodText = (): string => {
     switch (petData.mood) {
@@ -190,6 +139,28 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
       case 'sleepy': return '困了';
       case 'hungry': return '饿了';
       default: return '开心';
+    }
+  };
+
+  // 获取心情颜色
+  const getMoodColor = (): string => {
+    switch (petData.mood) {
+      case 'happy': return '#FFD700';
+      case 'excited': return '#FF7B8A';
+      case 'sleepy': return '#90CAF9';
+      case 'hungry': return '#4CAF50';
+      default: return '#FFD700';
+    }
+  };
+
+  // 获取心情图标
+  const getMoodIcon = (): keyof typeof Ionicons.glyphMap => {
+    switch (petData.mood) {
+      case 'happy': return 'happy';
+      case 'excited': return 'star';
+      case 'sleepy': return 'moon';
+      case 'hungry': return 'restaurant';
+      default: return 'happy';
     }
   };
 
@@ -224,60 +195,67 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={handlePress}
-        onLongPress={handleLongPress}
-        delayLongPress={500}
       >
-        <Animated.View style={[styles.petCard, petAnimatedStyle]}>
+        <Animated.View style={[styles.petBall, petAnimatedStyle]}>
           {/* 背景光晕 */}
           <View style={[styles.glow, { backgroundColor: getMoodColor() }]} />
           
-          {/* 宠物头像 - 逼真猫咪 */}
-          <View style={styles.petAvatarContainer}>
-            <CatAvatar size={55} mood={petData.mood} />
+          {/* 猫咪头像 */}
+          <View style={styles.catContainer}>
+            <CatAvatar size={60} mood={petData.mood} />
             
             {/* 反应动画 */}
             {showReaction && (
               <Animated.View style={[styles.reaction, reactionAnimatedStyle]}>
-                <Ionicons name={getReactionIcon()} size={24} color={getReactionColor()} />
+                <Ionicons name={getReactionIcon()} size={28} color={getReactionColor()} />
               </Animated.View>
             )}
           </View>
           
-          {/* 宠物信息 */}
-          <View style={styles.petInfo}>
-            <View style={styles.petHeader}>
-              <Text style={styles.petName}>{petData.name}</Text>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>Lv.{petData.level}</Text>
+          {/* 展开详情面板 */}
+          {isExpanded && (
+            <Animated.View style={styles.infoPanel}>
+              {/* 名字和等级 */}
+              <View style={styles.nameRow}>
+                <Text style={styles.petName}>{petData.name}</Text>
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelText}>Lv.{petData.level}</Text>
+                </View>
               </View>
-            </View>
-            
-            {/* 经验条 */}
-            <View style={styles.expBarContainer}>
-              <View style={styles.expBarBackground}>
-                <View style={[styles.expBarFill, { width: `${expProgress * 100}%` }]} />
+              
+              {/* 经验条 */}
+              <View style={styles.expContainer}>
+                <View style={styles.expBarBg}>
+                  <View style={[styles.expBarFill, { width: `${expProgress * 100}%` }]} />
+                </View>
+                <Text style={styles.expText}>{petData.experience}/{petData.maxExperience}</Text>
               </View>
-              <Text style={styles.expText}>{petData.experience}/{petData.maxExperience}</Text>
-            </View>
-            
-            {/* 心情和能量 */}
-            <View style={styles.statusRow}>
-              <View style={styles.moodTag}>
-                <Ionicons name={getMoodIcon()} size={10} color={getMoodColor()} />
-                <Text style={[styles.moodText, { color: getMoodColor() }]}>
-                  {getMoodText()}
-                </Text>
+              
+              {/* 心情和能量 */}
+              <View style={styles.statusRow}>
+                <View style={[styles.statusTag, { backgroundColor: `${getMoodColor()}20` }]}>
+                  <Ionicons name={getMoodIcon()} size={12} color={getMoodColor()} />
+                  <Text style={[styles.statusText, { color: getMoodColor() }]}>
+                    {getMoodText()}
+                  </Text>
+                </View>
+                <View style={styles.statusTag}>
+                  <Ionicons name="flash" size={12} color="#7C6AFF" />
+                  <Text style={[styles.statusText, { color: '#7C6AFF' }]}>
+                    {petData.energy}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.energyTag}>
-                <Ionicons name="flash" size={10} color="#7C6AFF" />
-                <Text style={styles.energyText}>{petData.energy}</Text>
-              </View>
-            </View>
-          </View>
+            </Animated.View>
+          )}
           
-          {/* 点击提示 */}
-          <View style={styles.tapHint}>
-            <Ionicons name="hand-left" size={12} color="#9E9E9E" />
+          {/* 展开指示器 */}
+          <View style={styles.expandHint}>
+            <Ionicons 
+              name={isExpanded ? 'chevron-forward' : 'chevron-back'} 
+              size={12} 
+              color="#FFF" 
+            />
           </View>
         </Animated.View>
       </TouchableOpacity>
@@ -291,83 +269,76 @@ const styles = StyleSheet.create({
     right: 16,
     zIndex: 100,
   },
-  petCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    padding: 12,
-    shadowColor: '#7C6AFF',
+  petBall: {
+    backgroundColor: '#FFF9E6',
+    borderRadius: 35,
+    padding: 5,
+    shadowColor: '#FFB74D',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
-    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
     overflow: 'visible',
   },
   glow: {
     position: 'absolute',
-    top: -10,
-    right: -10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    opacity: 0.2,
+    top: -15,
+    right: -15,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    opacity: 0.25,
   },
-  petAvatarContainer: {
+  catContainer: {
     width: 60,
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    marginRight: 8,
-  },
-  particle: {
-    position: 'absolute',
-    opacity: 0.6,
   },
   reaction: {
     position: 'absolute',
-    top: -10,
-    left: 13,
+    top: -5,
+    left: 16,
   },
-  petInfo: {
-    flex: 1,
-    minWidth: 100,
+  infoPanel: {
+    paddingLeft: 12,
+    paddingRight: 8,
+    maxWidth: 140,
   },
-  petHeader: {
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   petName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#333',
   },
   levelBadge: {
     backgroundColor: '#7C6AFF',
-    borderRadius: 8,
-    paddingHorizontal: 6,
+    borderRadius: 6,
+    paddingHorizontal: 5,
     paddingVertical: 2,
     marginLeft: 6,
   },
   levelText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     color: '#FFF',
   },
-  expBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
+  expContainer: {
+    marginBottom: 6,
   },
-  expBarBackground: {
-    flex: 1,
+  expBarBg: {
     height: 4,
     backgroundColor: '#F0F0F3',
     borderRadius: 2,
     overflow: 'hidden',
+    marginBottom: 3,
   },
   expBarFill: {
     height: '100%',
@@ -377,44 +348,38 @@ const styles = StyleSheet.create({
   expText: {
     fontSize: 9,
     color: '#9E9E9E',
-    marginLeft: 6,
   },
   statusRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 6,
   },
-  moodTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginRight: 6,
-  },
-  moodText: {
-    fontSize: 10,
-    marginLeft: 3,
-    fontWeight: '500',
-  },
-  energyTag: {
+  statusTag: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(124, 106, 255, 0.1)',
     borderRadius: 8,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 3,
+    gap: 3,
   },
-  energyText: {
+  statusText: {
     fontSize: 10,
-    color: '#7C6AFF',
-    marginLeft: 3,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  tapHint: {
+  expandHint: {
     position: 'absolute',
-    bottom: -18,
-    alignSelf: 'center',
-    opacity: 0.5,
+    left: -8,
+    top: '50%',
+    marginTop: -10,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#7C6AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#7C6AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
 });
