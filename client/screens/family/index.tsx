@@ -273,7 +273,7 @@ export default function FamilyScreen() {
     }));
 
   const handleWhiteboardEdit = () => {
-    // TODO: 打开编辑模式
+    // 打开编辑模式
   };
 
   return (

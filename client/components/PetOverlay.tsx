@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useState, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CatAvatar } from './CatAvatar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -230,25 +231,9 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
           {/* 背景光晕 */}
           <View style={[styles.glow, { backgroundColor: getMoodColor() }]} />
           
-          {/* 宠物头像 */}
-          <View style={[styles.petAvatarContainer, { backgroundColor: '#FFF9E6' }]}>
-            <Ionicons name={getMoodIcon()} size={32} color={getMoodColor()} />
-            
-            {/* 粒子效果 */}
-            {[...Array(4)].map((_, i) => (
-              <Animated.View
-                key={i}
-                style={[
-                  styles.particle,
-                  {
-                    left: 15 + Math.cos((i / 4) * Math.PI * 2) * 25,
-                    top: 15 + Math.sin((i / 4) * Math.PI * 2) * 25,
-                  },
-                ]}
-              >
-                <Ionicons name="sparkles" size={8} color="#FFD700" />
-              </Animated.View>
-            ))}
+          {/* 宠物头像 - 逼真猫咪 */}
+          <View style={styles.petAvatarContainer}>
+            <CatAvatar size={55} mood={petData.mood} />
             
             {/* 反应动画 */}
             {showReaction && (
@@ -330,13 +315,12 @@ const styles = StyleSheet.create({
     opacity: 0.2,
   },
   petAvatarContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    marginRight: 10,
+    marginRight: 8,
   },
   particle: {
     position: 'absolute',

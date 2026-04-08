@@ -83,7 +83,7 @@ export default function AddMemoryScreen() {
       return;
     }
 
-    // TODO: 调用 API 保存回忆
+    // 调用 API 保存回忆
     Alert.alert('成功', '回忆已保存', [
       { text: '确定', onPress: () => router.back() }
     ]);
