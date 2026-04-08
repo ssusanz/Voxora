@@ -108,15 +108,6 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="pet"
-          options={{
-            title: '宠物',
-            tabBarIcon: ({ color, focused }) => (
-              <TabBarIcon name="paw" color={color} focused={focused} />
-            ),
-          }}
-        />
-        <Tabs.Screen
           name="profile"
           options={{
             title: '我的',

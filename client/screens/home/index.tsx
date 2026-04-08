@@ -15,6 +15,7 @@ import Animated, {
   withTiming
 } from 'react-native-reanimated';
 import { useFocusEffect } from 'expo-router';
+import PetOverlay from '@/components/PetOverlay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - 48;
@@ -293,6 +294,9 @@ export default function HomeScreen() {
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
         />
       </View>
+      
+      {/* 宠物悬浮组件 */}
+      <PetOverlay onPetClick={() => console.log('Pet clicked!')} />
     </Screen>
   );
 }
