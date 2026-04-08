@@ -31,6 +31,11 @@ export default function RootLayout() {
           title: "回忆详情",
           animation: 'fade'
         }} />
+        <Stack.Screen name="nfc" options={{ 
+          title: "NFC 触碰",
+          animation: 'slide_from_bottom',
+          presentation: 'modal'
+        }} />
       </Stack>
       <Toast />
     </Provider>

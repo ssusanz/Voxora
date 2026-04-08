@@ -1,522 +1,467 @@
 import { Screen } from '@/components/Screen';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Image, Alert, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Image, Switch, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
+import { useState, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { useState } from 'react';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import * as ImagePicker from 'expo-image-picker';
-import { Audio } from 'expo-av';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
-const WEATHER_OPTIONS = [
-  { id: 'sunny', label: '晴天', icon: 'sunny' as const, color: '#FFB74D' },
-  { id: 'cloudy', label: '多云', icon: 'cloudy' as const, color: '#90A4AE' },
-  { id: 'rainy', label: '雨天', icon: 'rainy' as const, color: '#5C6BC0' },
-  { id: 'snowy', label: '雪天', icon: 'snow' as const, color: '#B3E5FC' },
-  { id: 'clear', label: '夜晚', icon: 'moon' as const, color: '#7E57C2' },
-];
+import EmotionPicker, { EmotionType } from '@/components/EmotionPicker';
+import VisualEmotionMatrix from '@/components/VisualEmotionMatrix';
 
-const MOOD_OPTIONS = [
-  { id: 'happy', label: '开心', icon: 'happy' as const, color: '#FFD54F' },
-  { id: 'excited', label: '兴奋', icon: 'heart' as const, color: '#FF7B8A' },
-  { id: 'peaceful', label: '平静', icon: 'leaf' as const, color: '#81C784' },
-  { id: 'relaxed', label: '放松', icon: 'cafe' as const, color: '#FFAB91' },
-  { id: 'grateful', label: '感恩', icon: 'star' as const, color: '#FFB74D' },
-];
+interface MemoryFormData {
+  title: string;
+  images: string[];
+  emotion?: EmotionType;
+  color?: string;
+  weather?: string;
+  sensory?: string;
+  isSealed: boolean;
+  unlockDate?: Date;
+  location: string;
+}
 
 export default function AddMemoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useSafeRouter();
+  const params = useSafeSearchParams<{ emotion?: string }>();
   
-  const [title, setTitle] = useState('');
-  const [selectedWeather, setSelectedWeather] = useState<string | null>(null);
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const [images, setImages] = useState<string[]>([]);
-  const [audioUri, setAudioUri] = useState<string | null>(null);
-  const [sealed, setSealed] = useState(false);
-  const [unlockDate, setUnlockDate] = useState<string | null>(null);
+  const [formData, setFormData] = useState<MemoryFormData>({
+    title: '',
+    images: [],
+    emotion: (params.emotion as EmotionType) || undefined,
+    isSealed: false,
+    unlockDate: undefined,
+    location: '',
+  });
+  
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showVisualMatrix, setShowVisualMatrix] = useState(false);
 
-  const pickImages = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
+  // 更新表单数据
+  const updateForm = useCallback((key: keyof MemoryFormData, value: any) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  }, []);
 
-    if (!result.canceled && result.assets[0]) {
-      setImages([...images, result.assets[0].uri]);
-    }
+  // 选择图片
+  const handlePickImage = async () => {
+    // TODO: 实现图片选择
+    console.log('选择图片');
   };
 
-  const removeImage = (index: number) => {
-    const newImages = [...images];
-    newImages.splice(index, 1);
-    setImages(newImages);
-  };
-
-  const recordAudio = async () => {
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('权限不足', '需要麦克风权限才能录音');
-      return;
-    }
-    Alert.alert('提示', '录音功能即将上线');
-  };
-
-  const handleSave = async () => {
-    if (!title.trim()) {
-      Alert.alert('提示', '请输入回忆标题');
-      return;
-    }
-    if (images.length === 0) {
-      Alert.alert('提示', '请至少添加一张照片');
-      return;
-    }
-    if (!selectedWeather) {
-      Alert.alert('提示', '请选择天气');
-      return;
-    }
-    if (!selectedMood) {
-      Alert.alert('提示', '请选择心情');
-      return;
-    }
-
+  // 提交回忆
+  const handleSubmit = useCallback(async () => {
     // 调用 API 保存回忆
-    Alert.alert('成功', '回忆已保存', [
-      { text: '确定', onPress: () => router.back() }
-    ]);
-  };
+    console.log('保存回忆:', formData);
+    router.back();
+  }, [formData, router]);
+
+  // 判断是否为纯情感记录（无图片、无文字）
+  const isPureEmotion = !formData.title && formData.images.length === 0;
 
   return (
-    <Screen safeAreaEdges={['left', 'right', 'top']} style={styles.screen}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        {/* 头部 */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#2D3436" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>新增回忆</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+    <Screen safeAreaEdges={['top']} style={styles.screen}>
+      {/* 顶部导航 */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="close" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>记录此刻</Text>
+        <TouchableOpacity 
+          onPress={handleSubmit}
+          style={[styles.submitButton, isPureEmotion && styles.submitButtonDisabled]}
+          disabled={isPureEmotion}
         >
-          {/* 标题输入 */}
-          <Animated.View entering={FadeInDown.delay(100).duration(300)}>
-            <Text style={styles.sectionLabel}>标题</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.titleInput}
-                placeholder="给这个回忆起个名字..."
-                placeholderTextColor="#B2AEAA"
-                value={title}
-                onChangeText={setTitle}
-                maxLength={50}
-              />
-              <Text style={styles.charCount}>{title.length}/50</Text>
-            </View>
-          </Animated.View>
+          <Text style={[styles.submitText, isPureEmotion && styles.submitTextDisabled]}>
+            完成
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-          {/* 天气选择 */}
-          <Animated.View entering={FadeInDown.delay(200).duration(300)}>
-            <Text style={styles.sectionLabel}>天气</Text>
-            <View style={styles.optionsRow}>
-              {WEATHER_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.optionItem,
-                    selectedWeather === option.id && { backgroundColor: option.color + '20', borderColor: option.color }
-                  ]}
-                  onPress={() => setSelectedWeather(option.id)}
-                >
-                  <Ionicons 
-                    name={option.icon} 
-                    size={24} 
-                    color={selectedWeather === option.id ? option.color : '#8B8680'} 
-                  />
-                  <Text style={[
-                    styles.optionLabel,
-                    selectedWeather === option.id && { color: option.color }
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-
-          {/* 心情选择 */}
-          <Animated.View entering={FadeInDown.delay(300).duration(300)}>
-            <Text style={styles.sectionLabel}>心情</Text>
-            <View style={styles.optionsRow}>
-              {MOOD_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.optionItem,
-                    selectedMood === option.id && { backgroundColor: option.color + '20', borderColor: option.color }
-                  ]}
-                  onPress={() => setSelectedMood(option.id)}
-                >
-                  <Ionicons 
-                    name={option.icon} 
-                    size={24} 
-                    color={selectedMood === option.id ? option.color : '#8B8680'} 
-                  />
-                  <Text style={[
-                    styles.optionLabel,
-                    selectedMood === option.id && { color: option.color }
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-
-          {/* 图片上传 */}
-          <Animated.View entering={FadeInDown.delay(400).duration(300)}>
-            <Text style={styles.sectionLabel}>照片</Text>
-            <View style={styles.imagesGrid}>
-              {images.map((uri, index) => (
-                <View key={index} style={styles.imageItem}>
-                  <Image source={{ uri }} style={styles.imagePreview} />
-                  <TouchableOpacity 
-                    style={styles.removeImageBtn}
-                    onPress={() => removeImage(index)}
-                  >
-                    <Ionicons name="close-circle" size={22} color="#FF6B6B" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              {images.length < 9 && (
-                <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
-                  <Ionicons name="add" size={32} color="#8B8680" />
-                  <Text style={styles.addImageText}>添加照片</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </Animated.View>
-
-          {/* 音频录制 */}
-          <Animated.View entering={FadeInDown.delay(500).duration(300)}>
-            <Text style={styles.sectionLabel}>语音记录（可选）</Text>
-            <TouchableOpacity style={styles.audioButton} onPress={recordAudio}>
-              <View style={styles.audioIcon}>
-                <Ionicons name={audioUri ? 'mic' : 'mic-outline'} size={24} color={audioUri ? '#FF6B6B' : '#7C6AFF'} />
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* 图片上传区 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>上传照片</Text>
+          <TouchableOpacity 
+            style={styles.imageUploadArea}
+            onPress={handlePickImage}
+            activeOpacity={0.8}
+          >
+            {formData.images.length === 0 ? (
+              <View style={styles.uploadPlaceholder}>
+                <Ionicons name="camera" size={40} color="#CCC" />
+                <Text style={styles.uploadText}>添加照片或视频</Text>
+                <Text style={styles.uploadHint}>记录美好瞬间</Text>
               </View>
-              <View style={styles.audioContent}>
-                <Text style={styles.audioTitle}>
-                  {audioUri ? '已录制语音' : '点击录制语音'}
-                </Text>
-                <Text style={styles.audioHint}>
-                  {audioUri ? '可重新录制' : '记录当下的声音'}
-                </Text>
-              </View>
-              {audioUri && (
-                <TouchableOpacity onPress={() => setAudioUri(null)}>
-                  <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* 时光胶囊 */}
-          <Animated.View entering={FadeInDown.delay(600).duration(300)}>
-            <TouchableOpacity 
-              style={styles.capsuleToggle}
-              onPress={() => setSealed(!sealed)}
-            >
-              <View style={styles.capsuleLeft}>
-                <Ionicons name="time" size={22} color={sealed ? '#FFB74D' : '#8B8680'} />
-                <View>
-                  <Text style={styles.capsuleTitle}>时光胶囊</Text>
-                  <Text style={styles.capsuleHint}>
-                    {sealed ? '设为封存回忆' : '封存后可在特定日期解锁'}
-                  </Text>
-                </View>
-              </View>
-              <View style={[
-                styles.toggleSwitch,
-                sealed && styles.toggleSwitchActive
-              ]}>
-                <View style={[
-                  styles.toggleKnob,
-                  sealed && styles.toggleKnobActive
-                ]} />
-              </View>
-            </TouchableOpacity>
-            
-            {sealed && (
-              <View style={styles.datePickerContainer}>
-                <Ionicons name="calendar-outline" size={18} color="#7C6AFF" />
-                <TextInput
-                  style={styles.dateInput}
-                  placeholder="选择解锁日期"
-                  placeholderTextColor="#B2AEAA"
-                  value={unlockDate || ''}
-                  onChangeText={setUnlockDate}
+            ) : (
+              <View style={styles.imagesPreview}>
+                <Image 
+                  source={{ uri: formData.images[0] }} 
+                  style={styles.previewImage}
+                  resizeMode="cover"
                 />
+                {formData.images.length > 1 && (
+                  <View style={styles.moreImagesBadge}>
+                    <Text style={styles.moreImagesText}>+{formData.images.length - 1}</Text>
+                  </View>
+                )}
               </View>
             )}
-          </Animated.View>
-
-          <View style={{ height: 100 }} />
-        </ScrollView>
-
-        {/* 保存按钮 */}
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-          <TouchableOpacity onPress={handleSave} activeOpacity={0.8}>
-            <LinearGradient
-              colors={['#7C6AFF', '#9D91FF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.saveButton}
-            >
-              <Ionicons name="checkmark" size={22} color="#FFFFFF" />
-              <Text style={styles.saveButtonText}>保存回忆</Text>
-            </LinearGradient>
           </TouchableOpacity>
         </View>
-      </View>
+
+        {/* 标题输入 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>标题</Text>
+          <TextInput
+            style={styles.titleInput}
+            placeholder="为这段回忆起个名字..."
+            placeholderTextColor="#CCC"
+            value={formData.title}
+            onChangeText={(text) => updateForm('title', text)}
+            maxLength={50}
+          />
+        </View>
+
+        {/* 情感选择 */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>情感记录</Text>
+            <TouchableOpacity 
+              onPress={() => setShowVisualMatrix(!showVisualMatrix)}
+              style={styles.matrixToggle}
+            >
+              <Ionicons 
+                name={showVisualMatrix ? 'grid' : 'apps'} 
+                size={18} 
+                color="#7C6AFF" 
+              />
+              <Text style={styles.matrixToggleText}>
+                {showVisualMatrix ? '简化模式' : '感官矩阵'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          {showVisualMatrix ? (
+            <VisualEmotionMatrix
+              selectedColor={formData.color}
+              selectedWeather={formData.weather}
+              selectedSensory={formData.sensory}
+              onColorSelect={(id) => updateForm('color', id)}
+              onWeatherSelect={(id) => updateForm('weather', id)}
+              onSensorySelect={(id) => updateForm('sensory', id)}
+            />
+          ) : (
+            <EmotionPicker
+              selectedEmotion={formData.emotion}
+              onSelect={(emotion) => updateForm('emotion', emotion)}
+            />
+          )}
+        </View>
+
+        {/* 位置 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>位置</Text>
+          <View style={styles.locationInput}>
+            <Ionicons name="location" size={20} color="#7C6AFF" />
+            <TextInput
+              style={styles.locationTextInput}
+              placeholder="添加位置..."
+              placeholderTextColor="#CCC"
+              value={formData.location}
+              onChangeText={(text) => updateForm('location', text)}
+            />
+          </View>
+        </View>
+
+        {/* 封存选项 */}
+        <View style={styles.section}>
+          <View style={styles.sealOption}>
+            <View style={styles.sealInfo}>
+              <View style={styles.sealIconContainer}>
+                <Ionicons name="time" size={22} color="#7C6AFF" />
+              </View>
+              <View style={styles.sealTextContainer}>
+                <Text style={styles.sealTitle}>封存回忆</Text>
+                <Text style={styles.sealDescription}>
+                  将这段情感设定在特定日期解锁
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={formData.isSealed}
+              onValueChange={(value) => updateForm('isSealed', value)}
+              trackColor={{ false: '#E0E0E0', true: '#B39DDB' }}
+              thumbColor={formData.isSealed ? '#7C6AFF' : '#FFF'}
+            />
+          </View>
+          
+          {formData.isSealed && (
+            <TouchableOpacity 
+              style={styles.datePickerButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Ionicons name="calendar" size={18} color="#7C6AFF" />
+              <Text style={styles.datePickerText}>
+                {formData.unlockDate 
+                  ? formData.unlockDate.toLocaleDateString('zh-CN')
+                  : '选择解锁日期'
+                }
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#CCC" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 非语言用户提示 */}
+        <View style={styles.aphasiaTip}>
+          <View style={styles.tipIcon}>
+            <Ionicons name="hand-left" size={20} color="#7C6AFF" />
+          </View>
+          <Text style={styles.tipText}>
+            即使不输入任何文字，通过选择颜色、天气和感官图标，你也能完成一次完整的情感记录。家人会收到你的情感快照。
+          </Text>
+        </View>
+      </ScrollView>
+
+      {/* 日期选择器 */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={formData.unlockDate || new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minimumDate={new Date()}
+          onChange={(event, date) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (date) updateForm('unlockDate', date);
+          }}
+        />
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
-    backgroundColor: '#F5F3F0',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
+    backgroundColor: '#FFF',
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F3',
   },
-  closeButton: {
+  backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2D3436',
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#333',
+  },
+  submitButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#7C6AFF',
+    borderRadius: 16,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#E0E0E0',
+  },
+  submitText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  submitTextDisabled: {
+    color: '#999',
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
-    paddingTop: 8,
+    padding: 20,
+    paddingBottom: 100,
   },
-  sectionLabel: {
+  section: {
+    marginBottom: 28,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2D3436',
+    color: '#333',
     marginBottom: 12,
-    marginTop: 20,
   },
-  inputContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    position: 'relative',
-  },
-  titleInput: {
-    fontSize: 16,
-    color: '#2D3436',
-    paddingRight: 50,
-  },
-  charCount: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
-    fontSize: 12,
-    color: '#B2AEAA',
-  },
-  optionsRow: {
+  matrixToggle: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  optionItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    minWidth: 70,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(124, 106, 255, 0.1)',
+    borderRadius: 12,
   },
-  optionLabel: {
+  matrixToggleText: {
     fontSize: 12,
+    color: '#7C6AFF',
     fontWeight: '500',
-    color: '#8B8680',
-    marginTop: 4,
   },
-  imagesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  imageItem: {
-    width: (Dimensions.get('window').width - 48 - 30) / 3,
-    aspectRatio: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-  },
-  removeImageBtn: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-  },
-  addImageBtn: {
-    width: (Dimensions.get('window').width - 48 - 30) / 3,
-    aspectRatio: 1,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+  imageUploadArea: {
+    height: 180,
+    backgroundColor: '#F8F8FA',
+    borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#E8E6E3',
+    borderColor: '#F0F0F3',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
-  addImageText: {
-    fontSize: 12,
-    color: '#8B8680',
-    marginTop: 4,
-  },
-  audioButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
+  uploadPlaceholder: {
     alignItems: 'center',
   },
-  audioIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  uploadText: {
+    fontSize: 15,
+    color: '#999',
+    marginTop: 12,
+  },
+  uploadHint: {
+    fontSize: 12,
+    color: '#CCC',
+    marginTop: 4,
+  },
+  imagesPreview: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  moreImagesBadge: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  moreImagesText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  titleInput: {
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: '#F8F8FA',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  locationInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8FA',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  locationTextInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+  },
+  sealOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8F8FA',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  sealInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sealIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(124, 106, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
-  audioContent: {
+  sealTextContainer: {
     flex: 1,
   },
-  audioTitle: {
+  sealTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2D3436',
-    marginBottom: 2,
+    color: '#333',
   },
-  audioHint: {
+  sealDescription: {
     fontSize: 12,
-    color: '#8B8680',
+    color: '#999',
+    marginTop: 4,
   },
-  capsuleToggle: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+  datePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  capsuleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  capsuleTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#2D3436',
-    marginBottom: 2,
-  },
-  capsuleHint: {
-    fontSize: 12,
-    color: '#8B8680',
-  },
-  toggleSwitch: {
-    width: 50,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#E8E6E3',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  toggleSwitchActive: {
-    backgroundColor: '#FFE0B2',
-  },
-  toggleKnob: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  toggleKnobActive: {
-    alignSelf: 'flex-end',
-  },
-  datePickerContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: 'rgba(124, 106, 255, 0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     gap: 10,
   },
-  dateInput: {
+  datePickerText: {
     flex: 1,
-    fontSize: 15,
-    color: '#2D3436',
+    fontSize: 14,
+    color: '#7C6AFF',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    backgroundColor: '#F5F3F0',
-  },
-  saveButton: {
+  aphasiaTip: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
+    backgroundColor: 'rgba(124, 106, 255, 0.08)',
     borderRadius: 16,
-    gap: 8,
-    shadowColor: '#7C6AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    padding: 16,
+    marginTop: 20,
   },
-  saveButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  tipIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(124, 106, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 20,
   },
 });
-
-

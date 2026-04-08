@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { 
   useSharedValue, 
@@ -9,7 +9,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CatAvatar } from './CatAvatar';
 
@@ -27,6 +27,17 @@ interface PetData {
   evolutionStage: number;
 }
 
+// 情绪送信消息类型
+interface EmotionMessage {
+  id: string;
+  emotion: string;
+  emotionColor: string;
+  emotionIcon: string;
+  targetMember: string;
+  timestamp: Date;
+  status: 'pending' | 'delivered';
+}
+
 // 默认宠物数据
 const defaultPet: PetData = {
   name: '小星',
@@ -39,6 +50,24 @@ const defaultPet: PetData = {
   evolutionStage: 2,
 };
 
+// 家庭成员列表
+const familyMembers = [
+  { id: '1', name: '奶奶', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200' },
+  { id: '2', name: '爸爸', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200' },
+  { id: '3', name: '妈妈', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200' },
+  { id: '4', name: '小明', avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200' },
+];
+
+// 情绪选项
+const emotionOptions = [
+  { id: 'love', icon: 'heart', color: '#FF5252', label: '爱' },
+  { id: 'joy', icon: 'sunny', color: '#FFD700', label: '开心' },
+  { id: 'missing', icon: 'heart-circle', color: '#FF7B8A', label: '想念' },
+  { id: 'calm', icon: 'leaf', color: '#81C784', label: '平静' },
+  { id: 'gratitude', icon: 'flower', color: '#FFB74D', label: '感谢' },
+  { id: 'encourage', icon: 'star', color: '#7C6AFF', label: '鼓励' },
+];
+
 interface PetOverlayProps {
   petData?: PetData;
   onPetClick?: () => void;
@@ -47,14 +76,14 @@ interface PetOverlayProps {
 export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOverlayProps) {
   const insets = useSafeAreaInsets();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showEmotionModal, setShowEmotionModal] = useState(false);
+  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [sentMessages, setSentMessages] = useState<EmotionMessage[]>([]);
   
   // 动画状态
   const scale = useSharedValue(1);
   const bounceValue = useSharedValue(0);
-  
-  // 展开动画
-  const cardWidth = useSharedValue(70);
-  const cardOpacity = useSharedValue(1);
   
   // 反应动画
   const [showReaction, setShowReaction] = useState(false);
@@ -64,26 +93,26 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
   const reactionTranslateY = useSharedValue(0);
 
   // 待机动画
-  const startIdleAnimation = useCallback(() => {
-    bounceValue.value = withSequence(
-      withTiming(-6, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-      withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.ease) })
-    );
+  useEffect(() => {
+    const interval = setInterval(() => {
+      bounceValue.value = withSequence(
+        withTiming(-4, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+      );
+    }, 3000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // 点击交互 - 切换展开/收起
-  const handlePress = useCallback(() => {
+  const handlePress = () => {
     const newExpanded = !isExpanded;
     setIsExpanded(newExpanded);
     
     if (newExpanded) {
-      // 展开动画
       scale.value = withSpring(1.05, { damping: 12 });
-      cardWidth.value = withSpring(200, { damping: 15 });
     } else {
-      // 收起动画
       scale.value = withSpring(1, { damping: 12 });
-      cardWidth.value = withSpring(70, { damping: 15 });
     }
     
     // 显示反应动画
@@ -112,7 +141,49 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
     if (onPetClick) {
       onPetClick();
     }
-  }, [isExpanded, onPetClick]);
+  };
+
+  // 打开情绪送信弹窗
+  const handleOpenEmotionModal = () => {
+    setShowEmotionModal(true);
+    setSelectedEmotion(null);
+    setSelectedMember(null);
+  };
+
+  // 发送情绪送信
+  const handleSendEmotion = () => {
+    if (selectedEmotion && selectedMember) {
+      const emotion = emotionOptions.find(e => e.id === selectedEmotion);
+      const member = familyMembers.find(m => m.id === selectedMember);
+      
+      if (emotion && member) {
+        const newMessage: EmotionMessage = {
+          id: Date.now().toString(),
+          emotion: emotion.id,
+          emotionColor: emotion.color,
+          emotionIcon: emotion.icon,
+          targetMember: member.name,
+          timestamp: new Date(),
+          status: 'pending',
+        };
+        
+        setSentMessages(prev => [...prev, newMessage]);
+        
+        // 模拟送达
+        setTimeout(() => {
+          setSentMessages(prev => 
+            prev.map(msg => 
+              msg.id === newMessage.id ? { ...msg, status: 'delivered' } : msg
+            )
+          );
+        }, 2000);
+      }
+      
+      setShowEmotionModal(false);
+      setSelectedEmotion(null);
+      setSelectedMember(null);
+    }
+  };
 
   // 猫咪容器动画
   const petAnimatedStyle = useAnimatedStyle(() => ({
@@ -186,9 +257,6 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
   // 计算经验条进度
   const expProgress = petData.experience / petData.maxExperience;
 
-  // 启动待机动画
-  startIdleAnimation();
-
   return (
     <View style={[styles.container, { bottom: 80 + insets.bottom }]}>
       {/* 宠物卡片 */}
@@ -214,7 +282,7 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
           
           {/* 展开详情面板 */}
           {isExpanded && (
-            <Animated.View style={styles.infoPanel}>
+            <View style={styles.infoPanel}>
               {/* 名字和等级 */}
               <View style={styles.nameRow}>
                 <Text style={styles.petName}>{petData.name}</Text>
@@ -246,7 +314,16 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
                   </Text>
                 </View>
               </View>
-            </Animated.View>
+              
+              {/* 情绪送信按钮 */}
+              <TouchableOpacity 
+                style={styles.emotionButton}
+                onPress={handleOpenEmotionModal}
+              >
+                <Ionicons name="mail-open" size={14} color="#7C6AFF" />
+                <Text style={styles.emotionButtonText}>情绪送信</Text>
+              </TouchableOpacity>
+            </View>
           )}
           
           {/* 展开指示器 */}
@@ -259,6 +336,95 @@ export default function PetOverlay({ petData = defaultPet, onPetClick }: PetOver
           </View>
         </Animated.View>
       </TouchableOpacity>
+
+      {/* 情绪送信弹窗 */}
+      <Modal
+        visible={showEmotionModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEmotionModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowEmotionModal(false)}
+        >
+          <View 
+            style={[styles.emotionModal, { paddingBottom: insets.bottom + 20 }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>情绪送信</Text>
+            <Text style={styles.modalSubtitle}>
+              选择一份情感，传递给家人
+            </Text>
+            
+            {/* 情绪选择 */}
+            <View style={styles.emotionGrid}>
+              {emotionOptions.map((emotion) => (
+                <TouchableOpacity
+                  key={emotion.id}
+                  style={[
+                    styles.emotionOption,
+                    selectedEmotion === emotion.id && styles.emotionOptionSelected,
+                    selectedEmotion === emotion.id && {
+                      backgroundColor: `${emotion.color}20`,
+                      borderColor: emotion.color
+                    }
+                  ]}
+                  onPress={() => setSelectedEmotion(emotion.id)}
+                >
+                  <View style={[styles.emotionIconCircle, { backgroundColor: emotion.color }]}>
+                    <Ionicons name={emotion.icon as any} size={24} color="#FFF" />
+                  </View>
+                  <Text style={[styles.emotionLabel, selectedEmotion === emotion.id && { color: emotion.color }]}>
+                    {emotion.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            {/* 成员选择 */}
+            <Text style={styles.memberSectionTitle}>发送给</Text>
+            <View style={styles.memberList}>
+              {familyMembers.map((member) => (
+                <TouchableOpacity
+                  key={member.id}
+                  style={[
+                    styles.memberOption,
+                    selectedMember === member.id && styles.memberOptionSelected
+                  ]}
+                  onPress={() => setSelectedMember(member.id)}
+                >
+                  <View style={styles.memberAvatarContainer}>
+                    <View style={[styles.memberAvatarBg, selectedMember === member.id && styles.memberAvatarBgSelected]}>
+                      <Text style={styles.memberInitial}>
+                        {member.name.charAt(0)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.memberName, selectedMember === member.id && styles.memberNameSelected]}>
+                    {member.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            {/* 发送按钮 */}
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                (!selectedEmotion || !selectedMember) && styles.sendButtonDisabled
+              ]}
+              onPress={handleSendEmotion}
+              disabled={!selectedEmotion || !selectedMember}
+            >
+              <Ionicons name="paper-plane" size={18} color="#FFF" />
+              <Text style={styles.sendButtonText}>发送情感</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -347,39 +513,178 @@ const styles = StyleSheet.create({
   },
   expText: {
     fontSize: 9,
-    color: '#9E9E9E',
+    color: '#999',
   },
   statusRow: {
     flexDirection: 'row',
     gap: 6,
+    marginBottom: 8,
   },
   statusTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(124, 106, 255, 0.1)',
-    borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 3,
+    backgroundColor: '#F8F8FA',
+    borderRadius: 8,
     gap: 3,
   },
   statusText: {
     fontSize: 10,
+    fontWeight: '500',
+  },
+  emotionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(124, 106, 255, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 4,
+  },
+  emotionButtonText: {
+    fontSize: 11,
     fontWeight: '600',
+    color: '#7C6AFF',
   },
   expandHint: {
     position: 'absolute',
-    left: -8,
-    top: '50%',
-    marginTop: -10,
+    bottom: -2,
+    left: 20,
+    backgroundColor: '#FFD700',
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#7C6AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#7C6AFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+  },
+  // 弹窗样式
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  emotionModal: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 24,
+  },
+  emotionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  emotionOption: {
+    width: '30%',
+    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#F8F8FA',
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  emotionOptionSelected: {
+    borderWidth: 2,
+  },
+  emotionIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  emotionLabel: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  memberSectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  memberList: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  memberOption: {
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 12,
+  },
+  memberOptionSelected: {
+    backgroundColor: 'rgba(124, 106, 255, 0.1)',
+  },
+  memberAvatarContainer: {
+    marginBottom: 6,
+  },
+  memberAvatarBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E0E0E0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  memberAvatarBgSelected: {
+    backgroundColor: '#7C6AFF',
+  },
+  memberInitial: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  memberName: {
+    fontSize: 12,
+    color: '#666',
+  },
+  memberNameSelected: {
+    color: '#7C6AFF',
+    fontWeight: '600',
+  },
+  sendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7C6AFF',
+    borderRadius: 24,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#E0E0E0',
+  },
+  sendButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFF',
   },
 });
