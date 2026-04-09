@@ -1,634 +1,489 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Image,
   ActivityIndicator,
   Alert,
-  Platform,
-  KeyboardAvoidingView,
-  TouchableWithoutFeedback,
-  Keyboard,
+  ScrollView,
   StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { Screen } from '@/components/Screen';
+import * as ImagePicker from 'expo-image-picker';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
-import { createFormDataFile } from '@/utils';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { getBackendBaseUrl } from '@/utils/backendBaseUrl';
+import { Screen } from '@/components/Screen';
+import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { createMemory } from '@/utils/voxoraDemoStore';
 
-interface MediaFile {
-  uri: string;
-  type: string;
-  name: string;
-}
+const emotionMatrix = [
+  { label: '喜悦', color: '#F9C74F', icon: 'emoticon-happy-outline' },
+  { label: '平静', color: '#4CC9F0', icon: 'weather-night' },
+  { label: '想念', color: '#B388EB', icon: 'heart-outline' },
+  { label: '紧张', color: '#EF476F', icon: 'pulse' },
+  { label: '希望', color: '#80ED99', icon: 'sprout-outline' },
+  { label: '温暖', color: '#FFD6A5', icon: 'white-balance-sunny' },
+] as const;
+
+const weatherOptions = ['晴朗', '微风', '多云', '小雨', '雪夜', '雷雨'];
+const bookOptions = ['诗集', '绘本', '旧相册', '小说', '旅行册', '未选择'];
+const colorOptions = ['海盐蓝', '曙光橙', '暮光紫', '森林绿', '雾灰', '樱花粉'];
 
 export default function AddMemoryScreen() {
   const router = useSafeRouter();
-  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
-
-  // 表单数据
   const [title, setTitle] = useState('');
-  const [memoryDate, setMemoryDate] = useState(new Date().toISOString().split('T')[0]);
-  const [location, setLocation] = useState('');
-  const [weather, setWeather] = useState('');
-  const [mood, setMood] = useState('');
-  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
-  const [audioFile, setAudioFile] = useState<MediaFile | null>(null);
+  const [memoryDate, setMemoryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [mediaUris, setMediaUris] = useState<string[]>([]);
+  const [emotion, setEmotion] = useState<string>('平静');
+  const [sensoryColor, setSensoryColor] = useState<string>('海盐蓝');
+  const [sensoryWeather, setSensoryWeather] = useState<string>('微风');
+  const [sensoryBook, setSensoryBook] = useState<string>('诗集');
+  const [soundRecorded, setSoundRecorded] = useState(false);
+  const [archivedUntil, setArchivedUntil] = useState('');
+  const [aphasiaMode, setAphasiaMode] = useState(true);
 
-  // 获取天气选项
-  const getWeatherOptions = () => {
-    return Object.values(t.addMemory.weatherOptions);
-  };
+  const memoryType = useMemo(() => (mediaUris.length > 0 ? 'photo' : 'emotion'), [mediaUris.length]);
 
-  // 获取心情选项
-  const getMoodOptions = () => {
-    return Object.values(t.addMemory.moodOptions);
-  };
-
-  const pickImage = async () => {
+  const pickMedia = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images', 'videos'],
         allowsEditing: false,
         allowsMultipleSelection: true,
-        quality: 0.8,
+        quality: 0.9,
       });
-
-      if (!result.canceled && result.assets) {
-        const newFiles = result.assets.map((asset, index) => ({
-          uri: asset.uri,
-          type: asset.type === 'video' ? 'video/mp4' : 'image/jpeg',
-          name: asset.type === 'video' ? `video_${Date.now()}_${index}.mp4` : `photo_${Date.now()}_${index}.jpg`,
-        }));
-        setMediaFiles([...mediaFiles, ...newFiles]);
-      }
+      if (result.canceled) return;
+      const selected = result.assets.map((asset) => asset.uri);
+      setMediaUris((prev) => [...prev, ...selected]);
     } catch (error) {
-      console.error('Failed to pick image:', error);
-      Alert.alert(t.error, t.addMemory.alertImagePickFailed);
+      console.error('pick media failed', error);
+      Alert.alert('选择失败', '请稍后再试。');
     }
   };
 
-  const pickAudio = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'audio/*',
-        copyToCacheDirectory: true,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        setAudioFile({
-          uri: asset.uri,
-          type: asset.mimeType || 'audio/mpeg',
-          name: asset.name || `audio_${Date.now()}.mp3`,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to pick audio:', error);
-      Alert.alert(t.error, t.addMemory.alertAudioPickFailed);
-    }
+  const removeMedia = (target: string) => {
+    setMediaUris((prev) => prev.filter((uri) => uri !== target));
   };
 
-  const removeMedia = (index: number) => {
-    setMediaFiles(mediaFiles.filter((_, i) => i !== index));
-  };
-
-  const removeAudio = () => {
-    setAudioFile(null);
-  };
-
-  const uploadFiles = async (): Promise<{ mediaKeys: string[]; audioKey: string | null }> => {
-    const mediaKeys: string[] = [];
-    let audioKey: string | null = null;
-
-    // 上传媒体文件
-    for (const file of mediaFiles) {
-      const formData = new FormData();
-      const formDataFile = await createFormDataFile(file.uri, file.name, file.type);
-      formData.append('file', formDataFile as any);
-
-      /**
-       * 服务端文件：server/src/routes/upload.ts
-       * 接口：POST /api/v1/upload
-       * FormData 参数：file: File
-       */
-      const uploadUrl = `${getBackendBaseUrl()}/api/v1/upload`;
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const bodyPreview = await response.text().catch(() => '');
-        console.error('[upload] POST /api/v1/upload failed', {
-          uploadUrl,
-          status: response.status,
-          statusText: response.statusText,
-          bodyPreview: bodyPreview.slice(0, 300),
-        });
-        continue;
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        mediaKeys.push(result.data.key);
-      }
-    }
-
-    // 上传音频文件
-    if (audioFile) {
-      const formData = new FormData();
-      const formDataFile = await createFormDataFile(audioFile.uri, audioFile.name, audioFile.type);
-      formData.append('file', formDataFile as any);
-
-      const uploadUrl = `${getBackendBaseUrl()}/api/v1/upload`;
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const bodyPreview = await response.text().catch(() => '');
-        console.error('[upload] POST /api/v1/upload (audio) failed', {
-          uploadUrl,
-          status: response.status,
-          statusText: response.statusText,
-          bodyPreview: bodyPreview.slice(0, 300),
-        });
-      } else {
-        const result = await response.json();
-        if (result.success) {
-          audioKey = result.data.key;
-        }
-      }
-    }
-
-    return { mediaKeys, audioKey };
-  };
-
-  const handleSave = async () => {
-    if (!title.trim()) {
-      Alert.alert(t.addMemory.alertTitleRequired);
-      return;
-    }
-
-    if (!memoryDate) {
-      Alert.alert(t.addMemory.alertDateRequired);
+  const onSave = async () => {
+    if (!memoryDate.trim()) {
+      Alert.alert('缺少日期', '请填写记录日期。');
       return;
     }
 
     setLoading(true);
     try {
-      // 先上传文件
-      const { mediaKeys, audioKey } = await uploadFiles();
-
-      // 创建回忆记录
-      /**
-       * 服务端文件：server/src/routes/memories.ts
-       * 接口：POST /api/v1/memories
-       * Body 参数：title: string, memory_date: string, location?: string, weather?: string, mood?: string, media_keys?: string[], audio_key?: string
-       */
-      const postUrl = `${getBackendBaseUrl()}/api/v1/memories`;
-      const response = await fetch(postUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          memory_date: memoryDate,
-          location: location.trim() || null,
-          weather: weather || null,
-          mood: mood || null,
-          media_keys: mediaKeys.length > 0 ? mediaKeys : null,
-          audio_key: audioKey,
-        }),
+      const finalTitle = title.trim() || `${emotion}的无声记录`;
+      const archivedValue = archivedUntil.trim() || null;
+      const memory = await createMemory({
+        title: finalTitle,
+        memoryDate: memoryDate.trim(),
+        type: memoryType,
+        mediaUris,
+        emotionTags: [emotion],
+        sensory: {
+          color: sensoryColor,
+          weather: sensoryWeather,
+          book: sensoryBook,
+          soundRecorded,
+        },
+        archivedUntil: archivedValue,
+        isAphasiaAuthor: aphasiaMode,
+        authorId: aphasiaMode ? 'm_aphasia' : 'm_creator',
       });
 
-      if (!response.ok) {
-        const bodyPreview = await response.text().catch(() => '');
-        console.error('[memories] POST /api/v1/memories failed', {
-          postUrl,
-          status: response.status,
-          statusText: response.statusText,
-          bodyPreview: bodyPreview.slice(0, 300),
-        });
-        Alert.alert(t.error, t.addMemory.alertSaveFailed);
-        return;
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        Alert.alert(t.success, t.addMemory.alertSaveSuccess, [
-          { text: t.confirm, onPress: () => router.back() },
-        ]);
-      } else {
-        console.error('[memories] POST /api/v1/memories success=false', { postUrl, result });
-        Alert.alert(t.error, result.error || t.addMemory.alertSaveFailed);
-      }
+      Alert.alert('已封存到时间轴', '你的情绪与感官片段已加入家庭记忆节点。', [
+        {
+          text: '查看详情',
+          onPress: () => router.replace('/memory-detail', { id: memory.id }),
+        },
+      ]);
     } catch (error) {
-      console.error('Failed to save memory:', error);
-      Alert.alert(t.error, t.addMemory.alertSaveFailed);
+      console.error('save memory failed', error);
+      Alert.alert('保存失败', '请稍后重试。');
     } finally {
       setLoading(false);
     }
   };
 
-  const weatherOptions = getWeatherOptions();
-  const moodOptions = getMoodOptions();
-
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} disabled={Platform.OS === 'web'}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.container}>
-          {/* 背景 */}
-          <LinearGradient
-            colors={['rgba(123,110,246,0.1)', 'rgba(92,224,216,0.05)', 'transparent']}
-            style={styles.background}
+    <Screen backgroundColor="#070B1C" statusBarStyle="light" style={styles.container}>
+      <LinearGradient colors={['#2D2A66', '#10193A', '#070B1C']} style={styles.background} />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+          <Feather name="x" size={20} color="#F5F2FF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>新增回忆（无声模式）</Text>
+        <View style={{ width: 38 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>基础信息</Text>
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="可不填：系统将自动生成标题"
+            placeholderTextColor="#8E88B0"
+            style={styles.input}
           />
-
-          {/* 头部 */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Feather name="x" size={24} color="#EEEAF6" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>{t.addMemory.title}</Text>
-            <View style={{ width: 40 }} />
-          </View>
-
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            {/* 标题输入 */}
-            <View style={styles.section}>
-              <Text style={styles.label}>{t.addMemory.titleLabelRequired}</Text>
-              <TextInput
-                style={styles.input}
-                value={title}
-                onChangeText={setTitle}
-                placeholder={t.addMemory.titlePlaceholder}
-                placeholderTextColor="#6B6880"
-              />
-            </View>
-
-            {/* 日期和地点 */}
-            <View style={styles.row}>
-              <View style={[styles.section, { flex: 1 }]}>
-                <Text style={styles.label}>{t.addMemory.dateLabelRequired}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={memoryDate}
-                  onChangeText={setMemoryDate}
-                  placeholder={t.addMemory.datePlaceholder}
-                  placeholderTextColor="#6B6880"
-                />
-              </View>
-              <View style={[styles.section, { flex: 1 }]}>
-                <Text style={styles.label}>{t.addMemory.locationLabel}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={location}
-                  onChangeText={setLocation}
-                  placeholder={t.addMemory.locationPlaceholder}
-                  placeholderTextColor="#6B6880"
-                />
-              </View>
-            </View>
-
-            {/* 天气 */}
-            <View style={styles.section}>
-              <Text style={styles.label}>{t.addMemory.weatherLabel}</Text>
-              <View style={styles.optionsGrid}>
-                {weatherOptions.map((item) => (
-                  <TouchableOpacity
-                    key={item}
-                    style={[
-                      styles.optionChip,
-                      weather === item && styles.optionChipActive,
-                    ]}
-                    onPress={() => setWeather(weather === item ? '' : item)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        weather === item && styles.optionTextActive,
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* 心情 */}
-            <View style={styles.section}>
-              <Text style={styles.label}>{t.addMemory.moodLabel}</Text>
-              <View style={styles.optionsGrid}>
-                {moodOptions.map((item) => (
-                  <TouchableOpacity
-                    key={item}
-                    style={[
-                      styles.optionChip,
-                      mood === item && styles.optionChipActive,
-                    ]}
-                    onPress={() => setMood(mood === item ? '' : item)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        mood === item && styles.optionTextActive,
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* 媒体文件 */}
-            <View style={styles.section}>
-              <Text style={styles.label}>{t.addMemory.mediaLabel}</Text>
-              <View style={styles.mediaGrid}>
-                {mediaFiles.map((file, index) => (
-                  <View key={index} style={styles.mediaItem}>
-                    {file.type.startsWith('image/') ? (
-                      <Image source={{ uri: file.uri }} style={styles.mediaPreview} />
-                    ) : (
-                      <View style={styles.videoPreview}>
-                        <Feather name="video" size={24} color="#7B6EF6" />
-                      </View>
-                    )}
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => removeMedia(index)}
-                    >
-                      <Feather name="x" size={14} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
-                  <Feather name="plus" size={24} color="#8E8BA3" />
-                  <Text style={styles.addMediaText}>{t.addMemory.addMedia}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* 音频 */}
-            <View style={styles.section}>
-              <Text style={styles.label}>{t.addMemory.audioLabel}</Text>
-              {audioFile ? (
-                <View style={styles.audioItem}>
-                  <MaterialCommunityIcons name="music-note" size={24} color="#7B6EF6" />
-                  <Text style={styles.audioName} numberOfLines={1}>
-                    {audioFile.name}
-                  </Text>
-                  <TouchableOpacity onPress={removeAudio}>
-                    <Feather name="x" size={18} color="#8E8BA3" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity style={styles.addAudioButton} onPress={pickAudio}>
-                  <Feather name="music" size={20} color="#8E8BA3" />
-                  <Text style={styles.addAudioText}>{t.addMemory.addAudio}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </ScrollView>
-
-          {/* 保存按钮 */}
-          <View style={styles.footer}>
+          <TextInput
+            value={memoryDate}
+            onChangeText={setMemoryDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor="#8E88B0"
+            style={styles.input}
+          />
+          <View style={styles.modeRow}>
+            <Text style={styles.modeLabel}>失语症支持作者身份</Text>
             <TouchableOpacity
-              style={styles.saveButton}
-              onPress={handleSave}
-              disabled={loading}
-              activeOpacity={0.8}
+              onPress={() => setAphasiaMode((v) => !v)}
+              style={[styles.modeSwitch, aphasiaMode && styles.modeSwitchActive]}
             >
-              <LinearGradient
-                colors={['#7B6EF6', '#5CE0D8']}
-                style={styles.saveButtonGradient}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Feather name="check" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.saveButtonText}>{t.addMemory.saveButton}</Text>
-                  </>
-                )}
-              </LinearGradient>
+              <Text style={[styles.modeSwitchText, aphasiaMode && styles.modeSwitchTextActive]}>
+                {aphasiaMode ? '开启' : '关闭'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>视觉情绪选择矩阵</Text>
+          <View style={styles.emotionGrid}>
+            {emotionMatrix.map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                onPress={() => setEmotion(item.label)}
+                style={[
+                  styles.emotionCard,
+                  { borderColor: `${item.color}AA` },
+                  emotion === item.label && { backgroundColor: `${item.color}33` },
+                ]}
+              >
+                <MaterialCommunityIcons name={item.icon} size={22} color={item.color} />
+                <Text style={styles.emotionText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>感官记录</Text>
+          <Text style={styles.subLabel}>颜色</Text>
+          <View style={styles.choiceRow}>
+            {colorOptions.map((item) => (
+              <TouchableOpacity
+                key={item}
+                onPress={() => setSensoryColor(item)}
+                style={[styles.choiceChip, sensoryColor === item && styles.choiceChipActive]}
+              >
+                <Text style={[styles.choiceText, sensoryColor === item && styles.choiceTextActive]}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.subLabel}>天气</Text>
+          <View style={styles.choiceRow}>
+            {weatherOptions.map((item) => (
+              <TouchableOpacity
+                key={item}
+                onPress={() => setSensoryWeather(item)}
+                style={[styles.choiceChip, sensoryWeather === item && styles.choiceChipActive]}
+              >
+                <Text style={[styles.choiceText, sensoryWeather === item && styles.choiceTextActive]}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.subLabel}>书籍图标</Text>
+          <View style={styles.choiceRow}>
+            {bookOptions.map((item) => (
+              <TouchableOpacity
+                key={item}
+                onPress={() => setSensoryBook(item)}
+                style={[styles.choiceChip, sensoryBook === item && styles.choiceChipActive]}
+              >
+                <Text style={[styles.choiceText, sensoryBook === item && styles.choiceTextActive]}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity
+            onPress={() => setSoundRecorded((v) => !v)}
+            style={[styles.audioToggle, soundRecorded && styles.audioToggleActive]}
+          >
+            <Feather name="mic" size={16} color={soundRecorded ? '#070B1C' : '#F6F2FF'} />
+            <Text style={[styles.audioToggleText, soundRecorded && styles.audioToggleTextActive]}>
+              {soundRecorded ? '环境音已记录（模拟）' : '点击记录环境音（模拟）'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>媒体与封存</Text>
+          <TouchableOpacity style={styles.mediaPicker} onPress={pickMedia}>
+            <Feather name="image" size={18} color="#D9D3F9" />
+            <Text style={styles.mediaPickerText}>添加照片/视频</Text>
+          </TouchableOpacity>
+          {mediaUris.length > 0 && (
+            <View style={styles.mediaList}>
+              {mediaUris.map((uri) => (
+                <View key={uri} style={styles.mediaRow}>
+                  <Text style={styles.mediaUri} numberOfLines={1}>
+                    {uri}
+                  </Text>
+                  <TouchableOpacity onPress={() => removeMedia(uri)}>
+                    <Feather name="trash-2" size={15} color="#FFB4C8" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+          <TextInput
+            value={archivedUntil}
+            onChangeText={setArchivedUntil}
+            placeholder="封存解锁日期（可选）YYYY-MM-DD"
+            placeholderTextColor="#8E88B0"
+            style={styles.input}
+          />
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.saveButton} disabled={loading} onPress={onSave}>
+          <LinearGradient colors={['#8A7BFF', '#4CC9F0']} style={styles.saveGradient}>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Feather name="check-circle" size={18} color="#FFFFFF" />
+                <Text style={styles.saveText}>写入家庭时间轴</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#0D1026',
+    backgroundColor: '#070B1C',
   },
   background: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 300,
+    height: 320,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingHorizontal: 18,
+    paddingBottom: 16,
   },
-  backButton: {
-    width: 40,
-    height: 40,
+  iconButton: {
+    width: 38,
+    height: 38,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    color: '#F6F2FF',
     fontWeight: '700',
-    color: '#EEEAF6',
-  },
-  scrollView: {
-    flex: 1,
+    fontSize: 17,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 120,
+    paddingHorizontal: 18,
+    paddingBottom: 130,
+    gap: 14,
   },
   section: {
-    marginBottom: 24,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.13)',
+    padding: 14,
+    gap: 10,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#EEEAF6',
-    marginBottom: 12,
+  sectionTitle: {
+    color: '#F4EEFF',
+    fontWeight: '700',
+    fontSize: 15,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 16,
-    color: '#EEEAF6',
+    borderRadius: 12,
+    backgroundColor: 'rgba(7,11,28,0.75)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.16)',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    color: '#F7F4FF',
   },
-  row: {
+  modeRow: {
+    marginTop: 4,
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  optionsGrid: {
+  modeLabel: {
+    color: '#D8D1F6',
+    fontSize: 13,
+  },
+  modeSwitch: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  modeSwitchActive: {
+    backgroundColor: '#80ED99',
+    borderColor: '#80ED99',
+  },
+  modeSwitchText: {
+    color: '#EEE7FF',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  modeSwitchTextActive: {
+    color: '#070B1C',
+  },
+  emotionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  optionChip: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  optionChipActive: {
-    backgroundColor: 'rgba(123,110,246,0.2)',
-    borderColor: '#7B6EF6',
-  },
-  optionText: {
-    fontSize: 14,
-    color: '#8E8BA3',
-    fontWeight: '600',
-  },
-  optionTextActive: {
-    color: '#EEEAF6',
-  },
-  mediaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  mediaItem: {
-    width: 80,
-    height: 80,
+  emotionCard: {
+    width: '31%',
+    minWidth: 96,
     borderRadius: 12,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  mediaPreview: {
-    width: '100%',
-    height: '100%',
-  },
-  videoPreview: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(123,110,246,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeButton: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addMediaButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderStyle: 'dashed',
+    backgroundColor: 'rgba(255,255,255,0.04)',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 11,
+    gap: 3,
   },
-  addMediaText: {
+  emotionText: {
+    color: '#F7F3FF',
     fontSize: 12,
-    color: '#8E8BA3',
+    fontWeight: '700',
+  },
+  subLabel: {
+    color: '#D7D0F5',
+    fontSize: 12,
     marginTop: 4,
   },
-  audioItem: {
+  choiceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  choiceChip: {
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  choiceChipActive: {
+    borderColor: '#8A7BFF',
+    backgroundColor: 'rgba(138,123,255,0.3)',
+  },
+  choiceText: {
+    color: '#DFD9FA',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  choiceTextActive: {
+    color: '#FFFFFF',
+  },
+  audioToggle: {
+    marginTop: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    padding: 16,
+    gap: 7,
+  },
+  audioToggleActive: {
+    backgroundColor: '#80ED99',
+    borderColor: '#80ED99',
+  },
+  audioToggleText: {
+    color: '#EEE8FF',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  audioToggleTextActive: {
+    color: '#070B1C',
+  },
+  mediaPicker: {
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  audioName: {
-    flex: 1,
-    fontSize: 14,
-    color: '#EEEAF6',
-    marginHorizontal: 12,
-  },
-  addAudioButton: {
-    flexDirection: 'row',
+    borderColor: 'rgba(255,255,255,0.16)',
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderStyle: 'dashed',
+    flexDirection: 'row',
+    gap: 8,
   },
-  addAudioText: {
-    fontSize: 14,
-    color: '#8E8BA3',
-    marginLeft: 8,
-    fontWeight: '600',
+  mediaPickerText: {
+    color: '#DCD6F8',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  mediaList: {
+    gap: 6,
+  },
+  mediaRow: {
+    borderRadius: 10,
+    backgroundColor: 'rgba(7,11,28,0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  mediaUri: {
+    flex: 1,
+    color: '#DED8F9',
+    fontSize: 12,
   },
   footer: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    paddingBottom: 40,
-    backgroundColor: 'rgba(13,16,38,0.95)',
+    left: 16,
+    right: 16,
+    bottom: 20,
   },
   saveButton: {
-    shadowColor: '#7B6EF6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  saveButtonGradient: {
-    flexDirection: 'row',
+  saveGradient: {
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
-    paddingVertical: 16,
+    flexDirection: 'row',
+    gap: 8,
   },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+  saveText: {
     color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
   },
 });

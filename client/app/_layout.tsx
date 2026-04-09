@@ -27,6 +27,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ title: "" }} />
           <Stack.Screen name="add-memory" options={{ title: "新增回忆", presentation: 'modal' }} />
           <Stack.Screen name="memory-detail" options={{ title: "回忆详情" }} />
+          <Stack.Screen name="family-space" options={{ title: "家庭空间" }} />
         </Stack>
         <Toast />
       </LanguageProvider>
