@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+import path from 'path';
 import express from "express";
 import cors from "cors";
 import memoriesRouter from "./routes/memories";
@@ -7,6 +9,10 @@ import vlogsRouter from "./routes/vlogs";
 import voiceRouter from "./routes/voice";
 import uploadRouter from "./routes/upload";
 import videoRouter from "./routes/video";
+
+// Load env for local / deploy runs (so deploy scripts can stay simple).
+dotenv.config({ path: path.resolve(process.cwd(), '../.env'), override: false });
+dotenv.config({ path: path.resolve(process.cwd(), '.env'), override: false });
 
 const app = express();
 const port = process.env.PORT || 9091;

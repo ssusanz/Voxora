@@ -251,3 +251,91 @@ import { Screen } from '../../../components/Screen';
 ## 本地开发
 
 `coze dev`：用来首次启动前后端服务，也可以用来重启前后端服务（该命令会先尝试杀掉占用端口的进程，再启动服务）
+
+## 远程部署（Mac mini / 后台运行）
+
+本项目推荐在远程机器（例如 Mac mini）上通过脚本启动 **Express 后端 + Expo Metro**。脚本会先释放端口，再启动后端与 Metro，并将后端日志写入文件。
+
+### 前置条件
+
+- 远程机器已安装：`git`、`pnpm`、Node.js
+- 如需后台运行（`deploy-bg`）：已安装 `tmux`（macOS：`brew install tmux`）
+- 路由器端口映射（若需要外网访问）：
+  - 公网 `METRO_PORT` → 远程机器 `METRO_PORT`（默认 `18081`，用于 Expo Go / Metro）
+  - 公网 `BACKEND_PORT` → 远程机器 `BACKEND_PORT`（默认 `19091`，用于 API）
+
+### 部署命令（建议后台）
+
+在远程机器上进入仓库根目录：
+
+```bash
+./scripts/voxora-deploy.sh deploy-bg
+```
+
+默认会创建 tmux 会话 `voxora-deploy` 并在其中运行同一个脚本（无参数版）。
+
+### 查看后台是否正常
+
+#### 1) tmux 会话是否存在
+
+```bash
+tmux ls
+```
+
+#### 2) 附着查看实时输出（最直接）
+
+```bash
+tmux attach -t voxora-deploy
+```
+
+退出附着但不杀进程：按 **`Ctrl+b`**，松手后再按 **`d`**（detach）。
+
+#### 3) 端口是否在监听
+
+```bash
+lsof -nP -iTCP:19091 -sTCP:LISTEN
+lsof -nP -iTCP:18081 -sTCP:LISTEN
+```
+
+#### 4) 后端健康检查
+
+后端提供健康检查接口：
+
+```bash
+curl -sS "http://127.0.0.1:19091/api/v1/health"
+```
+
+期望返回类似：
+
+```json
+{ "status": "ok", "timestamp": "..." }
+```
+
+#### 5) 查看后端日志
+
+脚本将后端输出写到：
+
+```bash
+tail -n 100 logs/server.log
+```
+
+### 停止 / 重启
+
+- **重启（推荐）**：重新执行 `./scripts/voxora-deploy.sh deploy-bg`。脚本会先按端口结束旧进程，再拉起新进程。
+- **停止**：
+  - 进入会话：`tmux attach -t voxora-deploy`
+  - 在会话里 `Ctrl+C`（会触发脚本的清理逻辑，结束后端与 Metro）
+
+### 端口与配置说明（与脚本一致）
+
+`scripts/voxora-deploy.sh` 顶部「调试配置」区块里包含关键变量（默认值可能会被你们调整）：
+
+- `BACKEND_PORT`：后端端口（默认 `19091`）
+- `METRO_PORT`：Expo Metro 端口（默认 `18081`）
+- `PUBLIC_IP` / `LAN_IP`：用于生成 Expo Go 二维码/链接与路由器映射说明
+
+### 相关脚本
+
+- `scripts/voxora-pull.sh`：更新代码（fetch/pull）
+- `scripts/voxora-push.sh`：提交并推送（add/status/commit/push，日志在 `logs/voxora-push.log`）
+- `scripts/voxora-deploy.sh`：部署启动（前台 / `deploy-bg` 后台）

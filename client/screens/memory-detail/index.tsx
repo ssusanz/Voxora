@@ -26,6 +26,7 @@ import EmotionMessageCard from '@/components/EmotionMessageCard';
 import GlowingCluster from '@/components/GlowingCluster';
 import VoiceInput from '@/components/VoiceInput';
 import { useToast } from '@/hooks/useToast';
+import { getBackendBaseUrl } from '@/utils/backend';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -215,8 +216,7 @@ export default function MemoryDetailScreen() {
       console.log('memoryId 不存在，使用默认列表第一个');
       // 如果没有 memoryId，从列表获取第一个回忆
       try {
-        const apiUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '';
-        const listRes = await fetch(`${apiUrl}/api/v1/memories?limit=1`);
+        const listRes = await fetch(`${getBackendBaseUrl()}/api/v1/memories?limit=1`);
         const listData = await listRes.json();
         if (listData.data && listData.data.length > 0) {
           const firstMemory = listData.data[0];
@@ -240,8 +240,7 @@ export default function MemoryDetailScreen() {
 
     try {
       setIsLoading(true);
-      const apiUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '';
-      const url = `${apiUrl}/api/v1/memories/${encodeURIComponent(id)}`;
+      const url = `${getBackendBaseUrl()}/api/v1/memories/${encodeURIComponent(id)}`;
       console.log('请求回忆详情:', url);
 
       const response = await fetch(url);
@@ -313,7 +312,7 @@ export default function MemoryDetailScreen() {
          * Path 参数：id: string
          * Body 参数：memberId: string, message: string, emotion: string
          */
-        const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${memoryId}/reactions`, {
+        const response = await fetch(`${getBackendBaseUrl()}/api/v1/memories/${memoryId}/reactions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -356,7 +355,7 @@ export default function MemoryDetailScreen() {
        * Path 参数：id: string
        */
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${memoryId}/hide`,
+        `${getBackendBaseUrl()}/api/v1/memories/${memoryId}/hide`,
         { method: 'POST' }
       );
 
@@ -390,7 +389,7 @@ export default function MemoryDetailScreen() {
        * 接口：POST /api/v1/memories/:id/summarize
        * Path 参数：id: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${memoryId}/summarize`, {
+      const response = await fetch(`${getBackendBaseUrl()}/api/v1/memories/${memoryId}/summarize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -443,7 +442,7 @@ export default function MemoryDetailScreen() {
        * Path 参数：id: string
        * Body 参数：memberId: string, message: string, emotion: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${memoryId}/reactions`, {
+      const response = await fetch(`${getBackendBaseUrl()}/api/v1/memories/${memoryId}/reactions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

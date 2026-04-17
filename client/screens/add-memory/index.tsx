@@ -14,6 +14,7 @@ import VisualEmotionMatrix from '@/components/VisualEmotionMatrix';
 import VoiceInput from '@/components/VoiceInput';
 import { createFormDataFile } from '@/utils';
 import { useToast } from '@/hooks/useToast';
+import { getBackendBaseUrl } from '@/utils/backend';
 
 interface MemoryFormData {
   title: string;
@@ -168,7 +169,7 @@ export default function AddMemoryScreen() {
         const formDataFile = new FormData();
         formDataFile.append('file', file as any);
 
-        const uploadRes = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/upload/image`, {
+        const uploadRes = await fetch(`${getBackendBaseUrl()}/api/v1/upload/image`, {
           method: 'POST',
           body: formDataFile,
         });
@@ -204,7 +205,7 @@ export default function AddMemoryScreen() {
          * 接口：PUT /api/v1/memories/:id
          * Path 参数：id: string
          */
-        const saveRes = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${params.editId}`, {
+        const saveRes = await fetch(`${getBackendBaseUrl()}/api/v1/memories/${params.editId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(memoryData),
@@ -224,7 +225,7 @@ export default function AddMemoryScreen() {
          * 接口：POST /api/v1/memories
          * Body 参数：title: string, date: string, location?: string, weather?: string, mood?: string, images?: string[], userId?: string, familyId?: string, isSealed?: boolean, unlockDate?: string
          */
-        const saveRes = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories`, {
+        const saveRes = await fetch(`${getBackendBaseUrl()}/api/v1/memories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(memoryData),

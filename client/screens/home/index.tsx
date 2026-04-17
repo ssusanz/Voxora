@@ -13,6 +13,7 @@ import DynamicIsland from '@/components/DynamicIsland';
 import GlowingCluster from '@/components/GlowingCluster';
 import EmotionPicker, { EmotionType } from '@/components/EmotionPicker';
 import PetOverlay from '@/components/PetOverlay';
+import { getBackendBaseUrl } from '@/utils/backend';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -151,7 +152,7 @@ export default function HomeScreen() {
        * 接口：GET /api/v1/memories
        * Query 参数：familyId?: string, page?: number, limit?: number
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories?limit=50`);
+      const response = await fetch(`${getBackendBaseUrl()}/api/v1/memories?limit=50`);
       const result = await response.json();
 
       if (result.data) {
@@ -208,7 +209,7 @@ export default function HomeScreen() {
        * 接口：POST /api/v1/memories/quick-mood
        * Body 参数：mood: string, userId?: string, familyId?: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/quick-mood`, {
+      const response = await fetch(`${getBackendBaseUrl()}/api/v1/memories/quick-mood`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mood: emotion }),
@@ -303,12 +304,12 @@ export default function HomeScreen() {
               )}
             </View>
           </View>
-          {item.emotionCount && (
+          {typeof item.emotionCount === 'number' && item.emotionCount > 0 ? (
             <View style={[styles.emotionCountBadge, { backgroundColor: color }]}>
               <Ionicons name="heart" size={10} color="#FFF" />
               <Text style={styles.emotionCountText}>{emotionCount}</Text>
             </View>
-          )}
+          ) : null}
         </TouchableOpacity>
       </Animated.View>
     );

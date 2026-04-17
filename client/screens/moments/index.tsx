@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from 'react-i18next';
+import { getBackendBaseUrl } from '@/utils/backend';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -38,6 +39,8 @@ interface PhotoItem {
   aspectRatio: number;
   index: number; // 在回忆中的索引
   mediaType: MediaType; // 媒体类型
+  /** 用于“唤醒回忆”：当当前帧是视频时，回退到封面/其它图片 URL */
+  awakenFallbackImageUrl?: string;
 }
 
 // 回忆类型（包含所有照片）
@@ -55,6 +58,40 @@ const isVideoUrl = (url: string): boolean => {
   const lowerUrl = url.toLowerCase();
   return videoExtensions.some(ext => lowerUrl.includes(ext)) || lowerUrl.includes('video');
 };
+
+function pickAwakenImageUrl(photos: PhotoItem[], index: number): string | null {
+  if (!photos || photos.length === 0) return null;
+  const clamped = Math.max(0, Math.min(index, photos.length - 1));
+  const current = photos[clamped];
+  if (!current) return null;
+
+  const isHttp = (u: string) => /^https?:\/\//i.test(u.trim());
+  const isUsableImage = (u: string) => isHttp(u) && !isVideoUrl(u);
+
+  const curUrl = String(current.url || '').trim();
+  if (isUsableImage(curUrl)) return curUrl;
+
+  // Prefer nearest non-video image around current index
+  for (let d = 1; d < photos.length; d++) {
+    const left = photos[clamped - d];
+    const right = photos[clamped + d];
+    const leftUrl = left ? String(left.url || '').trim() : '';
+    const rightUrl = right ? String(right.url || '').trim() : '';
+    if (left && isUsableImage(leftUrl)) return leftUrl;
+    if (right && isUsableImage(rightUrl)) return rightUrl;
+  }
+
+  const fallback = String(current.awakenFallbackImageUrl || '').trim();
+  if (isUsableImage(fallback)) return fallback;
+
+  // Last resort: any usable image in the carousel
+  for (const p of photos) {
+    const u = String(p.url || '').trim();
+    if (isUsableImage(u)) return u;
+  }
+
+  return null;
+}
 
 // 照片卡片组件（手账风格拍立得样式）
 function PhotoCard({ 
@@ -212,14 +249,32 @@ function PhotoViewer({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isAwakening, setIsAwakening] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const safePhotos = photos ?? [];
+
+  // TODO(video-generation): 接入真实的视频生成服务（替换当前 demo 禁用逻辑）
+  // 当前工程已脱离 Coze 上游：后端 `/api/v1/video/awaken` 在未配置视频生成端点时会返回 501。
+  // 为避免用户误以为“唤醒失败是图片 URL 问题”，这里默认禁用入口（方案 A）。
+  const AWAKEN_VIDEO_ENABLED = false;
 
   // 重置到初始索引
   useEffect(() => {
     setCurrentIndex(initialIndex);
-    if (flatListRef.current && initialIndex >= 0) {
-      flatListRef.current.scrollToIndex({ index: initialIndex, animated: false });
-    }
-  }, [initialIndex, visible]);
+    if (!visible) return;
+    if (!flatListRef.current) return;
+    if (initialIndex < 0) return;
+    if (!safePhotos || initialIndex >= safePhotos.length) return;
+
+    // FlatList sometimes isn't ready immediately when the modal opens.
+    // Defer and swallow failures to avoid masking other runtime errors.
+    const id = setTimeout(() => {
+      try {
+        flatListRef.current?.scrollToIndex({ index: initialIndex, animated: false });
+      } catch (e) {
+        // ignore
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [initialIndex, visible, safePhotos]);
 
   const onViewableItemsChanged = useCallback(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
@@ -233,9 +288,28 @@ function PhotoViewer({
 
   // 唤醒回忆（定义在条件 return 之前）
   const handleAwaken = useCallback(async () => {
-    if (!photos || photos.length === 0) return;
-    const targetPhoto = photos[currentIndex];
+    if (!safePhotos || safePhotos.length === 0) return;
+    const targetPhoto = safePhotos[currentIndex];
     if (!targetPhoto) return;
+    const imageUrl = pickAwakenImageUrl(safePhotos, currentIndex);
+    if (!imageUrl) {
+      showError(t('moments.awakenFailed'));
+      console.error('唤醒回忆失败: 找不到可用的图片 URL（当前可能是纯视频）', {
+        memoryId: targetPhoto.memoryId,
+        currentIndex,
+      });
+      return;
+    }
+    try {
+      // Strict validation: backend will also parse, but fail fast here.
+      // This catches URLs that start with http(s) but are still invalid.
+      // eslint-disable-next-line no-new
+      new URL(imageUrl);
+    } catch {
+      showError(t('moments.awakenFailed'));
+      console.error('唤醒回忆失败: Invalid URL (imageUrl)', imageUrl);
+      return;
+    }
 
     setIsAwakening(true);
     
@@ -245,37 +319,62 @@ function PhotoViewer({
        * 接口：POST /api/v1/video/awaken
        * Body 参数：imageUrl: string, memoryId?: string, prompt?: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/video/awaken`, {
+      const baseUrl = getBackendBaseUrl();
+      const endpoint = `${baseUrl}/api/v1/video/awaken`;
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageUrl: targetPhoto.url,
+          imageUrl,
           memoryId: targetPhoto.memoryId,
           prompt: '照片缓缓动起来，温暖的光线流转，仿佛时光在回溯',
         }),
       });
 
-      const result = await response.json();
+      const rawText = await response.text();
+      const result: any = (() => {
+        try {
+          return rawText ? JSON.parse(rawText) : {};
+        } catch {
+          return { error: rawText };
+        }
+      })();
 
       if (response.ok && result.success) {
         showSuccess(t('moments.awakenSuccess'));
         // 刷新数据
         onAwakenSuccess?.();
       } else {
-        throw new Error(result.error || '唤醒失败');
+        const msg = result?.error || `HTTP ${response.status}`;
+        console.error('唤醒回忆失败(后端返回):', {
+          endpoint,
+          status: response.status,
+          imageUrl,
+          body: result,
+        });
+        throw new Error(msg || '唤醒失败');
       }
     } catch (error: any) {
       console.error('唤醒回忆失败:', error);
-      showError(t('moments.awakenFailed'));
+      showError(error?.message ? `${t('moments.awakenFailed')}: ${String(error.message)}` : t('moments.awakenFailed'));
     } finally {
       setIsAwakening(false);
     }
-  }, [photos, currentIndex, onAwakenSuccess, t]);
+  }, [safePhotos, currentIndex, onAwakenSuccess, t, showError, showSuccess]);
 
-  if (!photos || photos.length === 0) return null;
+  const handleAwakenPress = useCallback(() => {
+    if (!AWAKEN_VIDEO_ENABLED) {
+      // NOTE: 不能用 disabled，否则 onPress 不会触发，用户看不到提示。
+      showInfo(t('moments.awakenDisabledTip'));
+      return;
+    }
+    void handleAwaken();
+  }, [AWAKEN_VIDEO_ENABLED, handleAwaken, showInfo, t]);
 
-  const currentPhoto = photos[currentIndex];
-  const isCurrentVideo = currentPhoto?.mediaType === 'video';
+  if (!safePhotos || safePhotos.length === 0) return null;
+
+  const currentPhoto = safePhotos[currentIndex];
+  const awakenImageUrl = pickAwakenImageUrl(safePhotos, currentIndex);
 
   const renderItem = ({ item, index }: { item: PhotoItem; index: number }) => (
     <MediaItem key={item.id} item={item} isActive={index === currentIndex} />
@@ -306,7 +405,7 @@ function PhotoViewer({
         {/* 照片列表 */}
         <FlatList
           ref={flatListRef}
-          data={photos}
+          data={safePhotos}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           horizontal
@@ -329,24 +428,24 @@ function PhotoViewer({
           <Text style={styles.viewerTitle}>{currentPhoto?.memoryTitle || t('moments.title')}</Text>
           <Text style={styles.viewerDate}>{currentPhoto?.date}</Text>
           {/* 页码指示器 */}
-          {photos.length > 1 && (
+          {safePhotos.length > 1 && (
             <Text style={styles.viewerCounter}>
-              {currentIndex + 1} / {photos.length}
+              {currentIndex + 1} / {safePhotos.length}
             </Text>
           )}
         </View>
 
-        {/* 唤醒回忆按钮 - 只在图片时显示 */}
-        {!isCurrentVideo && (
+        {/* 唤醒回忆按钮：视频帧会用相邻图片/封面作为输入 */}
+        {!!awakenImageUrl && (
           <View style={styles.awakenButtonContainer}>
             <TouchableOpacity
-              style={styles.awakenButton}
-              onPress={handleAwaken}
+              style={[styles.awakenButton, !AWAKEN_VIDEO_ENABLED && styles.awakenButtonDisabled]}
+              onPress={handleAwakenPress}
               disabled={isAwakening}
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#7C6AFF', '#9D91FF']}
+                colors={AWAKEN_VIDEO_ENABLED ? ['#7C6AFF', '#9D91FF'] : ['#BDBDBD', '#9E9E9E']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.awakenGradient}
@@ -356,7 +455,9 @@ function PhotoViewer({
                 ) : (
                   <>
                     <Ionicons name="play-circle" size={20} color="#FFF" />
-                    <Text style={styles.awakenButtonText}>{t('moments.awaken')}</Text>
+                    <Text style={styles.awakenButtonText}>
+                      {AWAKEN_VIDEO_ENABLED ? t('moments.awaken') : t('moments.awakenDisabled')}
+                    </Text>
                   </>
                 )}
               </LinearGradient>
@@ -365,14 +466,14 @@ function PhotoViewer({
         )}
 
         {/* 左右箭头指示 */}
-        {photos.length > 1 && (
+        {safePhotos.length > 1 && (
           <>
             {currentIndex > 0 && (
               <View style={[styles.arrowHint, styles.arrowLeft]}>
                 <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.6)" />
               </View>
             )}
-            {currentIndex < photos.length - 1 && (
+            {currentIndex < safePhotos.length - 1 && (
               <View style={[styles.arrowHint, styles.arrowRight]}>
                 <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.6)" />
               </View>
@@ -407,7 +508,7 @@ export default function MomentsScreen() {
        * 接口：GET /api/v1/memories
        * Query 参数：familyId?: string, page?: number, limit?: number
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories?limit=100`);
+      const response = await fetch(`${getBackendBaseUrl()}/api/v1/memories?limit=100`);
       const result = await response.json();
 
       if (result.data) {
@@ -418,6 +519,17 @@ export default function MomentsScreen() {
           const memoryImages = memory.images || [];
           if (Array.isArray(memoryImages) && memoryImages.length > 0) {
             const photos: PhotoItem[] = [];
+
+            const coverCandidate = typeof memory.cover_image === 'string' ? memory.cover_image.trim() : '';
+            const firstNonVideo = memoryImages.find((u: any) => typeof u === 'string' && u.trim() && !isVideoUrl(u)) as
+              | string
+              | undefined;
+            const awakenFallbackImageUrl =
+              coverCandidate && !isVideoUrl(coverCandidate)
+                ? coverCandidate
+                : typeof firstNonVideo === 'string'
+                  ? firstNonVideo.trim()
+                  : '';
             
             memoryImages.forEach((img: string, idx: number) => {
               if (img && typeof img === 'string' && img.trim()) {
@@ -438,6 +550,7 @@ export default function MomentsScreen() {
                   aspectRatio,
                   index: idx,
                   mediaType,
+                  awakenFallbackImageUrl: awakenFallbackImageUrl || undefined,
                 });
               }
             });
@@ -460,7 +573,7 @@ export default function MomentsScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   // 格式化日期
   const formatDate = (dateStr: string): string => {
@@ -511,7 +624,8 @@ export default function MomentsScreen() {
     const memory = memories.find(m => m.id === photo.memoryId);
     if (memory) {
       setSelectedMemory(memory);
-      setSelectedPhotoIndex(memory.photos.findIndex(p => p.id === photo.id));
+      const idx = memory.photos.findIndex(p => p.id === photo.id);
+      setSelectedPhotoIndex(idx >= 0 ? idx : 0);
       setShowViewer(true);
     }
   };
@@ -790,6 +904,9 @@ const styles = StyleSheet.create({
   awakenButton: {
     borderRadius: 25,
     overflow: 'hidden',
+  },
+  awakenButtonDisabled: {
+    opacity: 0.75,
   },
   awakenGradient: {
     flexDirection: 'row',

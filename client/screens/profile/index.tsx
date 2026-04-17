@@ -1,5 +1,17 @@
 import { Screen } from '@/components/Screen';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
@@ -8,6 +20,11 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from 'expo-router';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useToast } from '@/hooks/useToast';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+import { createFormDataFile } from '@/utils';
+import { getBackendBaseUrl } from '@/utils/backend';
+import { getCurrentUser, getMemories, updateUser, type User } from '@/services/api';
 
 interface MenuItem {
   id: string;
@@ -32,6 +49,36 @@ interface StatsData {
   interactions: number;
 }
 
+type LocalProfileOverrides = {
+  name?: string;
+  email?: string;
+  avatarUri?: string;
+};
+
+const LOCAL_PROFILE_KEY = 'voxora:profile:localOverrides:v1';
+
+function isProbablyValidEmail(email: string) {
+  // Intentionally lightweight — this app doesn't have real auth yet.
+  const trimmed = email.trim();
+  const parts = trimmed.split('@');
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  if (!local || !domain) return false;
+  if (local.includes(' ') || domain.includes(' ')) return false;
+  if (!domain.includes('.')) return false;
+  const tld = domain.split('.').pop() || '';
+  return tld.length >= 2;
+}
+
+function mergeUserProfile(remote: User, local?: LocalProfileOverrides | null): UserData {
+  return {
+    id: remote.id,
+    name: (local?.name || remote.name || '').trim(),
+    email: (local?.email || remote.email || '').trim(),
+    avatar: (local?.avatarUri || remote.avatar || '').trim(),
+  };
+}
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -46,39 +93,176 @@ export default function ProfileScreen() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [draftEmail, setDraftEmail] = useState('');
+  const [draftAvatarUri, setDraftAvatarUri] = useState<string | undefined>(undefined);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  const loadLocalOverrides = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(LOCAL_PROFILE_KEY);
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw) as LocalProfileOverrides;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const persistLocalOverrides = useCallback(async (next: LocalProfileOverrides) => {
+    const cleaned: LocalProfileOverrides = {
+      ...(next.name?.trim() ? { name: next.name.trim() } : {}),
+      ...(next.email?.trim() ? { email: next.email.trim() } : {}),
+      ...(next.avatarUri?.trim() ? { avatarUri: next.avatarUri.trim() } : {}),
+    };
+
+    await AsyncStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(cleaned));
+  }, []);
+
   // 获取用户数据
   const fetchUserData = useCallback(async () => {
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '';
-      const response = await fetch(`${apiUrl}/api/v1/users/me`);
-      const data = await response.json();
-      setUserData(data);
+      const remote = await getCurrentUser();
+      const local = await loadLocalOverrides();
+      setUserData(mergeUserProfile(remote, local));
     } catch (error) {
       console.error('获取用户数据失败:', error);
     }
-  }, []);
+  }, [loadLocalOverrides]);
 
   // 获取统计数据
   const fetchStatsData = useCallback(async () => {
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '';
-      const response = await fetch(`${apiUrl}/api/v1/memories?limit=1000`);
-      const data = await response.json();
+      const data = await getMemories(undefined, 1, 1000);
+      const memories = data.data || [];
+      const totalLikes = memories.reduce((sum: number, m: any) => sum + (m.likes || 0), 0);
 
-      if (data && data.data) {
-        const memories = data.data || [];
-        const totalLikes = memories.reduce((sum: number, m: any) => sum + (m.likes || 0), 0);
-
-        setStatsData({
-          memories: memories.length,
-          likes: totalLikes,
-          interactions: memories.length * 3, // 模拟互动数
-        });
-      }
+      setStatsData({
+        memories: memories.length,
+        likes: totalLikes,
+        interactions: memories.length * 3, // 模拟互动数
+      });
     } catch (error) {
       console.error('获取统计数据失败:', error);
     }
   }, []);
+
+  const openProfileEditor = useCallback(() => {
+    setDraftName(userData?.name || '');
+    setDraftEmail(userData?.email || '');
+    setDraftAvatarUri(userData?.avatar || undefined);
+    setShowProfileEditor(true);
+  }, [userData?.avatar, userData?.email, userData?.name]);
+
+  const tryUploadAvatar = useCallback(async (localUri: string): Promise<string | null> => {
+    try {
+      const fileName = `avatar_${Date.now()}.jpg`;
+      const file = await createFormDataFile(localUri, fileName, 'image/jpeg');
+      const formDataFile = new FormData();
+      formDataFile.append('file', file as any);
+
+      const uploadRes = await fetch(`${getBackendBaseUrl()}/api/v1/upload/image`, {
+        method: 'POST',
+        body: formDataFile,
+      });
+
+      if (!uploadRes.ok) return null;
+      const uploadData = await uploadRes.json();
+      return typeof uploadData?.url === 'string' ? uploadData.url : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const handlePickAvatar = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showError(t('addMemory.permissionDenied'));
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setDraftAvatarUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('选择头像失败:', error);
+      showError(t('addMemory.selectFailed'));
+    }
+  }, [showError, t]);
+
+  const handleSaveProfile = useCallback(async () => {
+    const name = draftName.trim();
+    const email = draftEmail.trim();
+
+    if (!name) {
+      showError(t('profile.nameRequired'));
+      return;
+    }
+
+    if (email && !isProbablyValidEmail(email)) {
+      showError(t('profile.emailInvalid'));
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      let avatarForServer = draftAvatarUri?.trim() || '';
+      if (avatarForServer && !avatarForServer.startsWith('http')) {
+        const uploadedUrl = await tryUploadAvatar(avatarForServer);
+        if (uploadedUrl) {
+          avatarForServer = uploadedUrl;
+          setDraftAvatarUri(uploadedUrl);
+        }
+      }
+
+      const updatedRemote = await updateUser({
+        name,
+        ...(avatarForServer ? { avatar: avatarForServer } : {}),
+      });
+
+      await persistLocalOverrides({
+        name,
+        ...(email ? { email } : {}),
+        ...(avatarForServer ? { avatarUri: avatarForServer } : {}),
+      });
+
+      setUserData(
+        mergeUserProfile(updatedRemote, {
+          name,
+          ...(email ? { email } : {}),
+          ...(avatarForServer ? { avatarUri: avatarForServer } : {}),
+        })
+      );
+
+      setShowProfileEditor(false);
+      showSuccess(t('profile.saveSuccess'));
+    } catch (error) {
+      console.error('保存资料失败:', error);
+      showError(t('profile.saveFailed'));
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }, [
+    draftAvatarUri,
+    draftEmail,
+    draftName,
+    persistLocalOverrides,
+    showError,
+    showSuccess,
+    t,
+    tryUploadAvatar,
+  ]);
 
   // 页面聚焦时刷新数据
   useFocusEffect(
@@ -102,7 +286,11 @@ export default function ProfileScreen() {
   ];
 
   const handleMenuPress = (item: MenuItem) => {
-    showInfo(t('profile.clickedItem', { item: item.title }));
+    if (item.id === '1') {
+      openProfileEditor();
+      return;
+    }
+    showInfo(t('profile.comingSoon'));
   };
 
   if (isLoading) {
@@ -141,7 +329,11 @@ export default function ProfileScreen() {
           <Animated.View entering={FadeInUp.duration(500)} style={styles.profileCard}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{userData?.name?.charAt(0) || '小'}</Text>
+                {userData?.avatar ? (
+                  <Image source={{ uri: userData.avatar }} style={styles.avatarImage} />
+                ) : (
+                  <Text style={styles.avatarText}>{userData?.name?.charAt(0) || '小'}</Text>
+                )}
               </View>
               <View style={styles.onlineBadge}>
                 <Ionicons name="checkmark" size={10} color="#FFFFFF" />
@@ -155,7 +347,7 @@ export default function ProfileScreen() {
                 <Text style={styles.familyText}>{t('family.title')}</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.editButton}>
+            <TouchableOpacity style={styles.editButton} onPress={openProfileEditor} activeOpacity={0.7}>
               <Ionicons name="pencil" size={18} color="#7C6AFF" />
             </TouchableOpacity>
           </Animated.View>
@@ -224,6 +416,79 @@ export default function ProfileScreen() {
         visible={showLanguageSwitcher}
         onClose={() => setShowLanguageSwitcher(false)}
       />
+
+      <Modal visible={showProfileEditor} transparent animationType="fade" onRequestClose={() => setShowProfileEditor(false)}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowProfileEditor(false)} />
+          <View style={[styles.modalCard, { paddingBottom: 16 + insets.bottom }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('profile.editTitle')}</Text>
+              <TouchableOpacity onPress={() => setShowProfileEditor(false)} hitSlop={10}>
+                <Ionicons name="close" size={22} color="#2D3436" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalAvatarRow}>
+              <TouchableOpacity style={styles.modalAvatar} onPress={handlePickAvatar} activeOpacity={0.85}>
+                {draftAvatarUri ? (
+                  <Image source={{ uri: draftAvatarUri }} style={styles.modalAvatarImage} />
+                ) : (
+                  <Text style={styles.modalAvatarText}>{(draftName.trim().charAt(0) || '?').toUpperCase()}</Text>
+                )}
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalHint}>{t('profile.avatarHint')}</Text>
+                <Text style={styles.modalHintMuted}>{t('profile.emailLocalNote')}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.fieldLabel}>{t('profile.nameLabel')}</Text>
+            <TextInput
+              value={draftName}
+              onChangeText={setDraftName}
+              placeholder={t('profile.namePlaceholder')}
+              placeholderTextColor="#B2AEAA"
+              style={styles.fieldInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <Text style={styles.fieldLabel}>{t('profile.emailLabel')}</Text>
+            <TextInput
+              value={draftEmail}
+              onChangeText={setDraftEmail}
+              placeholder={t('profile.emailPlaceholder')}
+              placeholderTextColor="#B2AEAA"
+              style={styles.fieldInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => setShowProfileEditor(false)}
+                disabled={isSavingProfile}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalButtonSecondaryText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary, isSavingProfile && { opacity: 0.6 }]}
+                onPress={handleSaveProfile}
+                disabled={isSavingProfile}
+                activeOpacity={0.85}
+              >
+                {isSavingProfile ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalButtonPrimaryText}>{t('common.save')}</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Screen>
   );
 }
@@ -297,6 +562,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#7C6AFF',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     fontSize: 24,
@@ -442,5 +712,111 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FF6B6B',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2D3436',
+  },
+  modalAvatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 14,
+  },
+  modalAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#7C6AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  modalAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  modalAvatarText: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  modalHint: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2D3436',
+    marginBottom: 4,
+  },
+  modalHintMuted: {
+    fontSize: 12,
+    color: '#8B8680',
+    lineHeight: 16,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8B8680',
+    marginBottom: 8,
+    marginTop: 6,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: '#E8E6E3',
+    backgroundColor: '#F5F3F0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#2D3436',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  modalButton: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonSecondary: {
+    backgroundColor: '#F5F3F0',
+  },
+  modalButtonSecondaryText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2D3436',
+  },
+  modalButtonPrimary: {
+    backgroundColor: '#7C6AFF',
+  },
+  modalButtonPrimaryText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

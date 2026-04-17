@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Image
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Animated, { 
   FadeIn, 
@@ -18,6 +18,7 @@ import Animated, {
 
 import FamilyTopology from '@/components/FamilyTopology';
 import Whiteboard from '@/components/Whiteboard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -146,13 +147,47 @@ export default function FamilySpaceScreen() {
   const insets = useSafeAreaInsets();
   const router = useSafeRouter();
   
+  const WHITEBOARD_STORAGE_KEY = 'voxora:whiteboard:v1';
+
   const [members] = useState<FamilyMember[]>(mockFamilyMembers);
   const [alerts] = useState<FamilyAlert[]>(mockAlerts);
   const [activeTab, setActiveTab] = useState<'topology' | 'whiteboard'>('topology');
-  const [whiteboardContent, setWhiteboardContent] = useState<{ id: string; text: string; author: string; authorAvatar: string }[]>([
-    { id: '1', text: '周末一起包饺子吧！', author: '奶奶', authorAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200' },
-    { id: '2', text: '好的，我准备馅料', author: '妈妈', authorAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200' },
+  const [whiteboardContent, setWhiteboardContent] = useState<{ id: string; content: string; author: string; timestamp: Date }[]>([
+    { id: '1', content: '周末一起包饺子吧！', author: '奶奶', timestamp: new Date(Date.now() - 25 * 60 * 1000) },
+    { id: '2', content: '好的，我准备馅料', author: '妈妈', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) },
   ]);
+
+  // 从本地存储恢复白板内容（避免刷新/重载丢失）
+  const loadWhiteboard = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(WHITEBOARD_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { id: string; content: string; author: string; timestamp: string }[];
+      if (!Array.isArray(parsed)) return;
+      setWhiteboardContent(parsed.map((m) => ({
+        id: String(m.id),
+        content: String(m.content ?? ''),
+        author: String(m.author ?? ''),
+        timestamp: new Date(m.timestamp),
+      })));
+    } catch (e) {
+      console.log('恢复家庭白板失败（可忽略）');
+    }
+  }, []);
+
+  const persistWhiteboard = useCallback(async (items: { id: string; content: string; author: string; timestamp: Date }[]) => {
+    try {
+      await AsyncStorage.setItem(
+        WHITEBOARD_STORAGE_KEY,
+        JSON.stringify(items.map((m) => ({
+          ...m,
+          timestamp: m.timestamp.toISOString(),
+        })))
+      );
+    } catch (e) {
+      console.log('保存家庭白板失败（可忽略）');
+    }
+  }, []);
 
   const unreadCount = alerts.filter(a => !a.isRead).length;
 
@@ -160,6 +195,14 @@ export default function FamilySpaceScreen() {
   const handleTabChange = useCallback((tab: 'topology' | 'whiteboard') => {
     setActiveTab(tab);
   }, []);
+
+  // 首次加载时恢复（避免刷新/热重载导致“刚输入就丢”）
+  useEffect(() => {
+    const id = setTimeout(() => {
+      loadWhiteboard();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [loadWhiteboard]);
 
   // 格式化时间
   const formatTime = (date: Date): string => {
@@ -278,18 +321,21 @@ export default function FamilySpaceScreen() {
               items={whiteboardContent.map(msg => ({
                 id: msg.id,
                 type: 'text' as const,
-                content: msg.text,
+                content: msg.content,
                 author: msg.author,
-                timestamp: new Date(),
+                timestamp: msg.timestamp,
               }))}
               onAddText={(text: string) => {
-                setWhiteboardContent(prev => [...prev, {
-                  id: Date.now().toString(),
-                  type: 'text' as const,
-                  content: text,
-                  author: '我',
-                  timestamp: new Date(),
-                }]);
+                setWhiteboardContent(prev => {
+                  const next = [...prev, {
+                    id: Date.now().toString(),
+                    content: text,
+                    author: '我',
+                    timestamp: new Date(),
+                  }];
+                  persistWhiteboard(next);
+                  return next;
+                });
               }}
             />
           </Animated.View>

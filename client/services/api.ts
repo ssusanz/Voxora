@@ -3,7 +3,9 @@
  * 封装所有与后端的 API 调用
  */
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+import { getBackendBaseUrl } from '@/utils/backend';
+
+const API_BASE_URL = getBackendBaseUrl();
 
 /**
  * 通用的 fetch 封装

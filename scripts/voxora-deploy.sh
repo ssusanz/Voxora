@@ -18,6 +18,8 @@ BACKEND_PORT="19091"
 METRO_PORT="18081"
 # 仅当需要二维码/终端显示内网 IP 时注释掉（例如同 WiFi 且路由器无 NAT 回流）
 export REACT_NATIVE_PACKAGER_HOSTNAME="$PUBLIC_IP"
+# 前端请求后端的基地址（前端代码大量依赖该 EXPO_PUBLIC_* 变量）
+export EXPO_PUBLIC_BACKEND_BASE_URL="${EXPO_PUBLIC_BACKEND_BASE_URL:-http://${PUBLIC_IP}:${BACKEND_PORT}}"
 # 与文档一致：https://docs.expo.dev/more/expo-cli/#server-url — 保证终端/二维码里的 exp:// 主机为公网（非 localhost）
 export EXPO_PACKAGER_PROXY_URL="http://${PUBLIC_IP}:${METRO_PORT}"
 # Expo Go：禁用 http「选端」中间页，二维码内容为纯 exp://…，便于相机/Expo Go 直接打开

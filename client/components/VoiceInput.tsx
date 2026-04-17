@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform, TextInput } 
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
+import { getBackendBaseUrl } from '@/utils/backend';
 
 interface VoiceInputProps {
   visible: boolean;
@@ -448,9 +449,10 @@ export default function VoiceInput({
   const uploadAudio = async (audioBase64: string, filename: string, mimeType: string) => {
     setIsProcessing(true);
 
+    const baseUrl = getBackendBaseUrl();
     const apiUrl = mode === 'extract'
-      ? `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/voice/transcribe-and-extract`
-      : `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/voice/transcribe`;
+      ? `${baseUrl}/api/v1/voice/transcribe-and-extract`
+      : `${baseUrl}/api/v1/voice/transcribe`;
 
     console.log('调用后端 API:', apiUrl);
 

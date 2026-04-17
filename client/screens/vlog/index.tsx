@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { useToast } from '@/hooks/useToast';
+import { getBackendBaseUrl } from '@/utils/backend';
 
 // 回忆数据接口
 interface Memory {
@@ -91,7 +92,7 @@ export default function VlogScreen() {
        * 接口：POST /api/v1/vlogs/generate
        * Body 参数：memoryIds: string[], title: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/vlogs/generate`, {
+      const response = await fetch(`${getBackendBaseUrl()}/api/v1/vlogs/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { execSync } from 'child_process';
+import path from 'path';
+import dotenv from 'dotenv';
 
 let envLoaded = false;
 
@@ -14,14 +16,19 @@ function loadEnv(): void {
   }
 
   try {
-    try {
-      require('dotenv').config();
+    // Load from local .env first (common in dev / deploy script).
+    // Prefer project root (.env) then server/.env.
+    const candidates = [
+      path.resolve(process.cwd(), '.env'),
+      path.resolve(process.cwd(), '../.env'),
+      path.resolve(process.cwd(), '../../.env'),
+    ];
+    for (const p of candidates) {
+      dotenv.config({ path: p, override: false });
       if (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY) {
         envLoaded = true;
         return;
       }
-    } catch {
-      // dotenv not available
     }
 
     const pythonCode = `

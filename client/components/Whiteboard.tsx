@@ -21,7 +21,6 @@ interface WhiteboardProps {
 export default function Whiteboard({ 
   items = [], 
   onAddText,
-  onAddDoodle,
   isEditable = true 
 }: WhiteboardProps) {
   const [isAdding, setIsAdding] = useState(false);
@@ -49,13 +48,7 @@ export default function Whiteboard({
               style={styles.actionButton}
               onPress={() => setIsAdding(true)}
             >
-              <Ionicons name="text" size={18} color="#7C6AFF" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={onAddDoodle}
-            >
-              <Ionicons name="brush" size={18} color="#7C6AFF" />
+              <Ionicons name="pencil" size={18} color="#7C6AFF" />
             </TouchableOpacity>
           </View>
         )}
@@ -137,13 +130,19 @@ export default function Whiteboard({
 }
 
 function formatTime(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const hours = Math.floor(diff / 3600000);
-  
-  if (hours < 1) return '刚刚';
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+
+  if (diffMs < 60 * 1000) return '刚刚';
+
+  const minutes = Math.floor(diffMs / (60 * 1000));
+  if (minutes < 60) return `${minutes}分钟前`;
+
+  const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}小时前`;
-  return `${Math.floor(hours / 24)}天前`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}天前`;
 }
 
 const styles = StyleSheet.create({

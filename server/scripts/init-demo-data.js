@@ -18,6 +18,47 @@ const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function loadDotenvIfPresent() {
+  const candidates = [
+    path.join(__dirname, '../../.env'),
+    path.join(__dirname, '../../.env.local'),
+    path.join(__dirname, '../.env'),
+    path.join(__dirname, '../.env.local'),
+  ];
+
+  const dotenvPath = candidates.find((p) => fs.existsSync(p));
+  if (!dotenvPath) return;
+
+  try {
+    const content = fs.readFileSync(dotenvPath, 'utf8');
+    for (const rawLine of content.split('\n')) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const eq = line.indexOf('=');
+      if (eq <= 0) continue;
+
+      const key = line.slice(0, eq).trim();
+      let value = line.slice(eq + 1).trim();
+
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+
+      if (process.env[key] === undefined) {
+        process.env[key] = value;
+      }
+    }
+    console.log(`✅ 已加载环境变量: ${path.relative(process.cwd(), dotenvPath)}`);
+  } catch (error) {
+    console.warn('⚠️  读取 .env 失败:', error.message);
+  }
+}
+
+loadDotenvIfPresent();
+
 // 尝试从多种来源获取数据库连接字符串
 let databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
@@ -91,36 +132,18 @@ async function initDemoData() {
 
   try {
     console.log('🔗 连接到数据库...');
-    console.log('📝 正在执行 SQL 脚本...\n');
+    console.log('🧹 清理旧的演示数据（仅清理 demo id 前缀）...');
+    // 注意顺序：先删引用方，再删被引用方
+    await client.query("DELETE FROM vlogs WHERE id LIKE 'vlog-%'");
+    await client.query("DELETE FROM memories WHERE id LIKE 'mem-%'");
+    await client.query("DELETE FROM users WHERE id LIKE 'user-%'");
+    await client.query("DELETE FROM families WHERE id LIKE 'family-%'");
 
-    // 分割 SQL 语句（简单分割，不处理嵌套的分号）
-    const statements = sqlContent
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.startsWith('--'));
-
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const statement of statements) {
-      try {
-        await client.query(statement);
-        successCount++;
-      } catch (error) {
-        // 忽略"重复键"错误（数据已存在）
-        if (error.code === '23505') {
-          console.log(`⚠️  跳过重复数据: ${statement.substring(0, 50)}...`);
-        } else {
-          console.error(`❌ 执行错误:`, error.message);
-          errorCount++;
-        }
-      }
-    }
+    console.log('📝 正在执行 SQL 脚本（整文件执行，支持 DO $$ 等语法）...\n');
+    // 直接执行整份 SQL，避免用 ';' 分割导致 DO $$ 块/注释解析错误
+    await client.query(sqlContent);
 
     console.log('\n✅ 演示数据初始化完成！');
-    console.log(`📊 统计信息：`);
-    console.log(`   - 成功执行：${successCount} 条语句`);
-    console.log(`   - 错误：${errorCount} 条语句`);
     console.log(`\n💡 提示：查看 server/DEMO_DATA_README.md 了解详情`);
 
     // 查询数据统计

@@ -46,13 +46,26 @@ router.post('/awaken', async (req, res) => {
     ];
 
     // 调用视频生成 API（duration: 4-12秒）
-    const response = await videoClient.videoGeneration(content, {
-      model: 'doubao-seedance-1-5-pro-251215',
-      duration: 4, // 最小4秒
-      ratio: '1:1', // 正方形比例
-      watermark: true,
-      generateAudio: true, // 生成配乐
-    });
+    let response: any;
+    try {
+      response = await videoClient.videoGeneration(content, {
+        model: 'doubao-seedance-1-5-pro-251215',
+        duration: 4, // 最小4秒
+        ratio: '1:1', // 正方形比例
+        watermark: true,
+        generateAudio: true, // 生成配乐
+      });
+    } catch (e: any) {
+      // In some demo/self-hosted setups, the upstream Coze video endpoint may be unconfigured.
+      // The SDK may throw "Invalid URL" when its base endpoint is missing/invalid.
+      const msg = e?.message || '视频生成服务不可用';
+      console.error('视频生成调用失败:', msg);
+      return res.status(501).json({
+        error: msg.includes('Invalid URL')
+          ? '视频生成服务未配置（上游返回 Invalid URL）'
+          : msg,
+      });
+    }
 
     console.log('视频生成响应:', response);
 
