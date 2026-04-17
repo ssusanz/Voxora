@@ -1,0 +1,123 @@
+{
+  "common": {
+    "appName": "Voxora",
+    "confirm": "पुष्टि करें",
+    "cancel": "रद्द करें",
+    "save": "सहेजें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "loading": "लोड हो रहा है...",
+    "error": "त्रुटि",
+    "retry": "पुनः प्रयास करें"
+  },
+  "tab": {
+    "home": "होम",
+    "family": "परिवार",
+    "add": "जोड़ें",
+    "profile": "प्रोफ़ाइल"
+  },
+  "profile": {
+    "title": "मेरा प्रोफ़ाइल",
+    "settings": "सेटिंग्स",
+    "language": "भाषा",
+    "theme": "थीम",
+    "about": "के बारे में",
+    "version": "संस्करण",
+    "logout": "लॉग आउट",
+    "notifications": "सूचनाएं",
+    "privacy": "गोपनीयता",
+    "help": "सहायता और प्रतिक्रिया"
+  },
+  "language": {
+    "title": "भाषा चुनें",
+    "chinese": "中文",
+    "english": "English",
+    "hindi": "हिंदी",
+    "current": "वर्तमान भाषा",
+    "saveMessage": "भाषा सेटिंग्स सहेजी गई"
+  },
+  "home": {
+    "title": "Voxora यादें",
+    "welcome": "वापसी पर स्वागत है",
+    "noMemories": "अभी तक कोई याद नहीं",
+    "createFirst": "अपनी पहली याद बनाएं",
+    "quickCreate": "त्वरित निर्माण",
+    "energy": "ऊर्जा",
+    "mood": "मूड"
+  },
+  "family": {
+    "title": "पारिवारिक स्थान",
+    "members": "परिवार के सदस्य",
+    "online": "ऑनलाइन",
+    "offline": "ऑफ़लाइन",
+    "addMember": "सदस्य जोड़ें",
+    "invite": "परिवार आमंत्रित करें",
+    "sharedMemories": "साझा यादें",
+    "emotionPulse": "भावना धड़कन"
+  },
+  "memory": {
+    "title": "याद विवरण",
+    "date": "दिनांक",
+    "location": "स्थान",
+    "weather": "मौसम",
+    "mood": "मूड",
+    "photos": "फ़ोटो",
+    "likes": "पसंद",
+    "comments": "टिप्पणियां",
+    "share": "साझा करें",
+    "seal": "याद सील करें",
+    "unseal": "याद अनलॉक करें",
+    "summarize": "AI सारांश"
+  },
+  "addMemory": {
+    "title": "याद जोड़ें",
+    "titlePlaceholder": "याद का शीर्षक दर्ज करें",
+    "datePlaceholder": "दिनांक चुनें",
+    "locationPlaceholder": "स्थान दर्ज करें",
+    "weather": "मौसम",
+    "mood": "मूड",
+    "photos": "फ़ोटो",
+    "addPhotos": "फ़ोटो जोड़ें",
+    "save": "याद सहेजें",
+    "cancel": "रद्द करें"
+  },
+  "vlog": {
+    "title": "Vlog निर्माता",
+    "selectMemories": "यादें चुनें",
+    "selected": "चयनित",
+    "generate": "Vlog बनाएं",
+    "generating": "बनाया जा रहा है...",
+    "myVlogs": "मेरे Vlogs",
+    "play": "चलाएं",
+    "delete": "हटाएं",
+    "noVlogs": "अभी तक कोई Vlog नहीं",
+    "createFirst": "अपना पहला Vlog बनाएं"
+  },
+  "pet": {
+    "title": "पालतू जानवर ऊर्जा",
+    "feed": "खिलाएं",
+    "play": "खेलें",
+    "evolve": "विकसित हों",
+    "level": "स्तर",
+    "experience": "अनुभव",
+    "energy": "ऊर्जा"
+  },
+  "emotions": {
+    "happy": "खुश",
+    "sad": "उदास",
+    "excited": "उत्साहित",
+    "relaxed": "आराम",
+    "joyful": "प्रसन्न",
+    "calm": "शांत",
+    "anxious": "चिंतित",
+    "tired": "थका हुआ"
+  },
+  "weather": {
+    "sunny": "धूप",
+    "cloudy": "बादल",
+    "rainy": "बारिश",
+    "snowy": "बर्फ",
+    "foggy": "कोहरा",
+    "stormy": "तूफान"
+  }
+}

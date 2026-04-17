@@ -1,0 +1,690 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform, TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+
+interface VoiceInputProps {
+  visible: boolean;
+  onClose: () => void;
+  onTranscribed?: (text: string) => void;
+  onComplete?: (data: { transcription: string; extractedInfo: any }) => void;
+  mode?: 'transcribe' | 'extract';
+  title?: string;
+  subtitle?: string;
+}
+
+// Toast 消息组件
+interface ToastMessage {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+function Toast({ toasts, onDismiss }: { toasts: ToastMessage[]; onDismiss: (id: string) => void }) {
+  useEffect(() => {
+    toasts.forEach(toast => {
+      const timer = setTimeout(() => {
+        onDismiss(toast.id);
+      }, 3000);
+      return () => clearTimeout(timer);
+    });
+  }, [toasts, onDismiss]);
+
+  if (toasts.length === 0) return null;
+
+  return (
+    <View style={toastStyles.container}>
+      {toasts.map(toast => (
+        <View key={toast.id} style={[toastStyles.toast, toastStyles[toast.type]]}>
+          <Ionicons
+            name={toast.type === 'success' ? 'checkmark-circle' : toast.type === 'error' ? 'alert-circle' : 'information-circle'}
+            size={20}
+            color={toast.type === 'success' ? '#10B981' : toast.type === 'error' ? '#EF4444' : '#3B82F6'}
+          />
+          <Text style={toastStyles.message}>{toast.message}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const toastStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+    zIndex: 9999,
+  },
+  toast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  success: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#10B981',
+  },
+  error: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+  },
+  info: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  message: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#333',
+  },
+});
+
+// Web 平台录音状态类型
+interface WebRecordingState {
+  mediaRecorder: MediaRecorder | null;
+  audioChunks: Blob[];
+  stream: MediaStream | null;
+  mimeType: string;
+}
+
+export default function VoiceInput({
+  visible,
+  onClose,
+  onTranscribed,
+  onComplete,
+  mode = 'transcribe',
+  title = '语音输入',
+  subtitle = '点击麦克风开始录音'
+}: VoiceInputProps) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const webRecordingRef = useRef<WebRecordingState>({
+    mediaRecorder: null,
+    audioChunks: [],
+    stream: null,
+    mimeType: 'audio/webm',
+  });
+  const isWebPlatform = Platform.OS === 'web';
+
+  // Toast 辅助函数
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  // 清理函数
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (webRecordingRef.current.stream) {
+        webRecordingRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // ============ Web 平台录音实现 ============
+  const startWebRecording = async () => {
+    try {
+      console.log('Web 平台：请求麦克风权限...');
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
+      webRecordingRef.current.stream = stream;
+      console.log('Web 平台：麦克风权限已授予');
+
+      // 检测支持的音频格式
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+        mimeType = 'audio/ogg';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      }
+      console.log('Web 平台：使用的音频格式:', mimeType);
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
+        audioBitsPerSecond: 128000,
+      });
+      webRecordingRef.current.mediaRecorder = mediaRecorder;
+      webRecordingRef.current.audioChunks = [];
+      webRecordingRef.current.mimeType = mimeType;
+
+      mediaRecorder.ondataavailable = (event) => {
+        console.log('Web 平台：收到音频数据块，大小:', event.data.size, 'bytes');
+        if (event.data.size > 0) {
+          webRecordingRef.current.audioChunks.push(event.data);
+        }
+      };
+
+      // 设置 timeslice=500ms，让 ondataavailable 每 500ms 自动触发，确保数据被定期收集
+      mediaRecorder.start(500);
+      console.log('Web 平台：录音已开始，state:', mediaRecorder.state);
+
+      setIsRecording(true);
+      setRecordingDuration(0);
+      intervalRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('Web 平台录音失败:', error);
+      showToast('麦克风权限不足，请允许访问', 'error');
+    }
+  };
+
+  const stopWebRecording = async () => {
+    const { mediaRecorder, audioChunks, mimeType } = webRecordingRef.current;
+
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+      console.log('Web 平台：没有正在进行的录音');
+      return;
+    }
+
+    console.log('Web 平台：停止录音，state:', mediaRecorder.state);
+    console.log('Web 平台：当前收集的音频块数量:', audioChunks.length);
+    console.log('Web 平台：音频格式:', mimeType);
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingDuration(0);
+
+    return new Promise<void>((resolve) => {
+      mediaRecorder.onstop = async () => {
+        console.log('Web 平台：录音已停止');
+
+        if (webRecordingRef.current.stream) {
+          webRecordingRef.current.stream.getTracks().forEach(track => track.stop());
+        }
+
+        const audioBlob = new Blob(audioChunks, { type: mimeType });
+        console.log('Web 平台：合并后音频大小:', audioBlob.size, 'bytes');
+        console.log('Web 平台：收集到的音频块数量:', audioChunks.length);
+
+        // 阈值检查：至少 1KB
+        const MIN_AUDIO_SIZE = 1000;
+        if (audioBlob.size < MIN_AUDIO_SIZE) {
+          console.error('Web 平台：录音文件太小，当前:', audioBlob.size, 'bytes，阈值:', MIN_AUDIO_SIZE, 'bytes');
+          showToast('未检测到有效音频，请重试并对着麦克风说话', 'error');
+          resolve();
+          return;
+        }
+
+        const audioBase64 = await blobToBase64(audioBlob);
+        console.log('Web 平台：音频已转为 Base64，长度:', audioBase64.length);
+
+        // 根据 mimeType 确定文件扩展名
+        const extension = mimeType.includes('ogg') ? '.ogg' : mimeType.includes('mp4') ? '.mp4' : '.webm';
+        const filename = `recording${extension}`;
+
+        // 关闭弹窗并上传
+        resolve();
+        await uploadAudio(audioBase64, filename, mimeType);
+      };
+
+      // 直接停止，因为 timeslice=500 会让 ondataavailable 自动触发
+      try {
+        console.log('Web 平台：停止录音...');
+        mediaRecorder.stop();
+      } catch (e) {
+        console.error('Web 平台：停止录音失败', e);
+        resolve();
+      }
+    });
+  };
+
+  const cancelWebRecording = async () => {
+    console.log('Web 平台：取消录音...');
+
+    const { mediaRecorder, stream } = webRecordingRef.current;
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingDuration(0);
+
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+
+    webRecordingRef.current = {
+      mediaRecorder: null,
+      audioChunks: [],
+      stream: null,
+      mimeType: 'audio/webm',
+    };
+
+    onClose();
+  };
+
+  // Blob 转 Base64
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  // ============ 移动平台录音实现 ============
+  const [nativeRecording, setNativeRecording] = useState<Audio.Recording | null>(null);
+
+  const startNativeRecording = async () => {
+    try {
+      console.log('移动平台：请求麦克风权限...');
+
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        showToast('需要麦克风权限才能录音', 'error');
+        return;
+      }
+
+      console.log('移动平台：麦克风权限已授予');
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      setNativeRecording(recording);
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      intervalRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+      console.log('移动平台：录音已开始');
+
+    } catch (error: any) {
+      console.error('移动平台录音失败:', error);
+      showToast('录音失败，请重试', 'error');
+    }
+  };
+
+  const stopNativeRecording = async () => {
+    if (!nativeRecording) return;
+
+    console.log('移动平台：停止录音...');
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingDuration(0);
+
+    try {
+      await nativeRecording.stopAndUnloadAsync();
+      const uri = nativeRecording.getURI();
+
+      if (!uri) {
+        showToast('录音文件获取失败', 'error');
+        setNativeRecording(null);
+        return;
+      }
+
+      console.log('移动平台：录音文件 URI:', uri);
+
+      const audioBase64 = await (FileSystem as any).readAsStringAsync(uri, {
+        encoding: (FileSystem as any).EncodingType.Base64,
+      });
+      console.log('移动平台：音频已转为 Base64，长度:', audioBase64.length);
+
+      // 移动端阈值检查：至少 1KB
+      const MIN_AUDIO_SIZE = 1000;
+      if (audioBase64.length < MIN_AUDIO_SIZE) {
+        console.error('移动平台：音频太小，当前:', audioBase64.length, 'bytes，阈值:', MIN_AUDIO_SIZE, 'bytes');
+        showToast('未检测到有效音频，请重试并对着麦克风说话', 'error');
+        setNativeRecording(null);
+        return;
+      }
+
+      await uploadAudio(audioBase64, 'recording.m4a', 'audio/m4a');
+
+    } catch (error: any) {
+      console.error('移动平台处理失败:', error);
+      if (!error.message?.includes('already been unloaded')) {
+        showToast('处理失败，请重试', 'error');
+      }
+    } finally {
+      setNativeRecording(null);
+    }
+  };
+
+  const cancelNativeRecording = async () => {
+    console.log('移动平台：取消录音...');
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingDuration(0);
+
+    if (nativeRecording) {
+      try {
+        await nativeRecording.stopAndUnloadAsync();
+      } catch (error: any) {
+        console.log('停止录音时出错（忽略）:', error.message);
+      }
+    }
+
+    setNativeRecording(null);
+    onClose();
+  };
+
+  // ============ 统一的录音控制 ============
+  const startRecording = () => {
+    if (isWebPlatform) {
+      startWebRecording();
+    } else {
+      startNativeRecording();
+    }
+  };
+
+  const stopRecording = () => {
+    if (isWebPlatform) {
+      stopWebRecording();
+    } else {
+      stopNativeRecording();
+    }
+  };
+
+  const cancelRecording = () => {
+    if (isWebPlatform) {
+      cancelWebRecording();
+    } else {
+      cancelNativeRecording();
+    }
+  };
+
+  // ============ 上传音频到后端 ============
+  const uploadAudio = async (audioBase64: string, filename: string, mimeType: string) => {
+    setIsProcessing(true);
+
+    const apiUrl = mode === 'extract'
+      ? `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/voice/transcribe-and-extract`
+      : `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/voice/transcribe`;
+
+    console.log('调用后端 API:', apiUrl);
+
+    try {
+      const apiResponse = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audio: audioBase64,
+          filename,
+          mimeType,
+        }),
+      });
+
+      console.log('后端 API 响应状态:', apiResponse.status);
+
+      if (!apiResponse.ok) {
+        const errorText = await apiResponse.text();
+        console.error('后端 API 错误:', apiResponse.status, errorText);
+        showToast('语音处理失败', 'error');
+        return;
+      }
+
+      const data = await apiResponse.json();
+      console.log('语音处理成功:', data);
+
+      if (mode === 'extract') {
+        if (onComplete && data.transcription) {
+          onComplete({
+            transcription: data.transcription,
+            extractedInfo: data.extractedInfo || null,
+          });
+          showToast('语音识别成功', 'success');
+          setTimeout(() => onClose(), 500);
+        } else {
+          showToast('未识别到语音内容，请重试', 'error');
+        }
+      } else if (onTranscribed) {
+        if (data.transcription) {
+          onTranscribed(data.transcription);
+          showToast('语音识别成功', 'success');
+          setTimeout(() => onClose(), 500);
+        } else {
+          showToast('未识别到语音内容，请重试', 'error');
+        }
+      }
+
+    } catch (error: any) {
+      console.error('上传失败:', error);
+      showToast('网络请求失败，请重试', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ============ 格式化时长 ============
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // ============ 渲染 ============
+  return (
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelRecording}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.container}>
+            {/* Toast 提示 */}
+            <Toast toasts={toasts} onDismiss={dismissToast} />
+
+            {/* 加载指示器 */}
+            {isProcessing && (
+              <View style={styles.processingOverlay}>
+                <View style={styles.processingContent}>
+                  <Ionicons name="sync" size={32} color="#7C6AFF" />
+                  <Text style={styles.processingText}>正在识别语音...</Text>
+                </View>
+              </View>
+            )}
+
+            {/* 录音波形动画 */}
+            <View style={styles.waveContainer}>
+              {[40, 60, 50, 70, 45].map((height, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.waveBar,
+                    { height: isRecording ? height : 20, animationDelay: `${index * 100}ms` }
+                  ]}
+                />
+              ))}
+            </View>
+
+            {/* 录音提示 */}
+            <Text style={styles.title}>
+              {isProcessing ? '处理中...' : isRecording ? '正在录音...' : title}
+            </Text>
+
+            {/* 录音时长 */}
+            {isRecording && (
+              <Text style={styles.duration}>{formatDuration(recordingDuration)}</Text>
+            )}
+
+            {!isRecording && !isProcessing && (
+              <Text style={styles.hint}>{subtitle}</Text>
+            )}
+
+            {/* 录音按钮 */}
+            {!isProcessing && (
+              <TouchableOpacity
+                style={[
+                  styles.recordButton,
+                  isRecording && styles.recordButtonActive,
+                ]}
+                onPress={isRecording ? stopRecording : startRecording}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={isRecording ? 'stop' : 'mic'}
+                  size={32}
+                  color="#FFF"
+                />
+              </TouchableOpacity>
+            )}
+
+            {/* 取消按钮 */}
+            {!isProcessing && (
+              <TouchableOpacity style={styles.cancelButton} onPress={cancelRecording}>
+                <Ionicons name="close" size={24} color="#999" />
+              </TouchableOpacity>
+            )}
+
+            {/* 平台标识 */}
+            <Text style={styles.platformHint}>
+              {isWebPlatform ? 'Web 平台' : '移动平台'}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    width: 280,
+    minHeight: 320,
+  },
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  processingContent: {
+    alignItems: 'center',
+  },
+  processingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  waveContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 80,
+    marginBottom: 20,
+  },
+  waveBar: {
+    width: 6,
+    backgroundColor: '#7C6AFF',
+    borderRadius: 3,
+    marginHorizontal: 3,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  duration: {
+    fontSize: 32,
+    fontWeight: '300',
+    color: '#7C6AFF',
+    marginBottom: 16,
+    fontVariant: ['tabular-nums'],
+  },
+  hint: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  recordButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#7C6AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  recordButtonActive: {
+    backgroundColor: '#FF4757',
+  },
+  cancelButton: {
+    padding: 8,
+  },
+  platformHint: {
+    position: 'absolute',
+    bottom: 8,
+    right: 12,
+    fontSize: 10,
+    color: '#CCC',
+  },
+});

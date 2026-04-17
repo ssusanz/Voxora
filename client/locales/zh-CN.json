@@ -1,0 +1,123 @@
+{
+  "common": {
+    "appName": "Voxora",
+    "confirm": "确认",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "loading": "加载中...",
+    "error": "出错了",
+    "retry": "重试"
+  },
+  "tab": {
+    "home": "首页",
+    "family": "家庭",
+    "add": "新增",
+    "profile": "我的"
+  },
+  "profile": {
+    "title": "我的",
+    "settings": "设置",
+    "language": "语言",
+    "theme": "主题",
+    "about": "关于",
+    "version": "版本",
+    "logout": "退出登录",
+    "notifications": "消息通知",
+    "privacy": "隐私设置",
+    "help": "帮助与反馈"
+  },
+  "language": {
+    "title": "选择语言",
+    "chinese": "中文",
+    "english": "English",
+    "hindi": "हिंदी",
+    "current": "当前语言",
+    "saveMessage": "语言设置已保存"
+  },
+  "home": {
+    "title": "Voxora 回忆",
+    "welcome": "欢迎回来",
+    "noMemories": "还没有回忆",
+    "createFirst": "创建第一个回忆",
+    "quickCreate": "快速创建",
+    "energy": "能量",
+    "mood": "心情"
+  },
+  "family": {
+    "title": "家庭空间",
+    "members": "家庭成员",
+    "online": "在线",
+    "offline": "离线",
+    "addMember": "添加成员",
+    "invite": "邀请家人",
+    "sharedMemories": "共同回忆",
+    "emotionPulse": "情感脉动"
+  },
+  "memory": {
+    "title": "回忆详情",
+    "date": "日期",
+    "location": "地点",
+    "weather": "天气",
+    "mood": "心情",
+    "photos": "照片",
+    "likes": "点赞",
+    "comments": "评论",
+    "share": "分享",
+    "seal": "封存回忆",
+    "unseal": "解锁回忆",
+    "summarize": "AI 总结"
+  },
+  "addMemory": {
+    "title": "新增回忆",
+    "titlePlaceholder": "输入回忆标题",
+    "datePlaceholder": "选择日期",
+    "locationPlaceholder": "输入地点",
+    "weather": "天气",
+    "mood": "心情",
+    "photos": "照片",
+    "addPhotos": "添加照片",
+    "save": "保存回忆",
+    "cancel": "取消"
+  },
+  "vlog": {
+    "title": "Vlog 创作",
+    "selectMemories": "选择回忆",
+    "selected": "已选择",
+    "generate": "生成 Vlog",
+    "generating": "生成中...",
+    "myVlogs": "我的 Vlogs",
+    "play": "播放",
+    "delete": "删除",
+    "noVlogs": "还没有 Vlog",
+    "createFirst": "创建第一个 Vlog"
+  },
+  "pet": {
+    "title": "宠物能量",
+    "feed": "喂食",
+    "play": "玩耍",
+    "evolve": "进化",
+    "level": "等级",
+    "experience": "经验值",
+    "energy": "能量"
+  },
+  "emotions": {
+    "happy": "开心",
+    "sad": "难过",
+    "excited": "兴奋",
+    "relaxed": "放松",
+    "joyful": "喜悦",
+    "calm": "平静",
+    "anxious": "焦虑",
+    "tired": "疲惫"
+  },
+  "weather": {
+    "sunny": "晴天",
+    "cloudy": "多云",
+    "rainy": "下雨",
+    "snowy": "下雪",
+    "foggy": "雾天",
+    "stormy": "雷暴"
+  }
+}

@@ -1,0 +1,168 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+@theme {
+  /* Primitive Colors */
+  --white: oklch(100% 0 0);
+  --black: oklch(0% 0 0);
+  --snow: oklch(0.9911 0 0);
+  --eclipse: oklch(0.2103 0.0059 285.89);
+
+  /* Border */
+  --border-width: 1px;
+  --field-border-width: 0px;
+
+  /* Base radius */
+  --radius: 0.5rem;
+  --field-radius: calc(var(--radius) * 1.5);
+
+  /* Opacity */
+  --opacity-disabled: 0.5;
+}
+
+@layer theme {
+  :root {
+    @variant light {
+      /* Voxora 柔和卡片风配色 - 温馨家庭回忆录 */
+      
+      /* Base Colors */
+      --background: #F5F3F0;  /* 暖灰米白背景 */
+      --foreground: #2D3436;  /* 深灰文字 */
+
+      /* Uniwind / useCSSVariable 语义别名 */
+      --color-background: var(--background);
+      --color-muted: var(--muted);
+      --color-accent: var(--accent);
+      
+      /* Surface */
+      --surface: #F5F3F0;  /* 卡片与背景同色 */
+      --surface-foreground: var(--foreground);
+      
+      /* Overlay */
+      --overlay: #F5F3F0;
+      --overlay-foreground: var(--foreground);
+      
+      --muted: #8B8680;  /* 暖灰次要文字 */
+      
+      --default: #F0F0F3;
+      --default-foreground: var(--eclipse);
+      
+      /* Accent - 薰衣草紫主色 */
+      --accent: #7C6AFF;
+      --accent-foreground: var(--snow);
+      
+      /* Secondary - 珊瑚粉辅色 */
+      --secondary: #FF7B8A;
+      --secondary-foreground: var(--snow);
+      
+      /* Field Colors */
+      --field-background: #E8E6E3;  /* 凹陷效果背景 */
+      --field-foreground: oklch(0.2103 0.0059 285.89);
+      --field-placeholder: #B2AEAA;
+      --field-border: transparent;
+      
+      /* Status Colors */
+      --success: #4CAF50;
+      --success-foreground: var(--snow);
+      
+      --warning: #FFB74D;
+      --warning-foreground: var(--eclipse);
+      
+      --danger: #FF6B6B;
+      --danger-foreground: var(--snow);
+      
+      /* Component Colors */
+      --segment: var(--white);
+      --segment-foreground: var(--eclipse);
+      
+      /* Misc */
+      --border: #D8D6D3;
+      --separator: #E8E6E3;
+      --focus: var(--accent);
+      --link: var(--foreground);
+      
+      /* Shadows - 有色阴影 */
+      --surface-shadow: 
+        0 4px 12px 0 rgba(124, 106, 255, 0.08), 
+        0 2px 4px 0 rgba(0, 0, 0, 0.04),
+        0 0 1px 0 rgba(124, 106, 255, 0.1);
+      --overlay-shadow:
+        0 6px 16px 0 rgba(124, 106, 255, 0.12), 
+        0 3px 6px 0 rgba(0, 0, 0, 0.06),
+        0 12px 24px 0 rgba(0, 0, 0, 0.08);
+      --field-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.04), 
+        0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      
+      /* Voxora 特殊色 */
+      --gold: #FFB74D;  /* 琥珀金，用于特殊时刻 */
+      --warm-white: #FFFCF8;  /* 温暖白 */
+      --card-bg: #F5F3F0;  /* 卡片背景 */
+      --star-glow: #FFD700;  /* 星团发光效果 */
+    }
+
+    @variant dark {
+      /* Dark mode - 保持柔和风格 */
+      --background: #1A1825;
+      --foreground: #F5F3F0;
+      
+      --surface: #252336;
+      --surface-foreground: var(--foreground);
+      
+      --overlay: #2D2A42;
+      --overlay-foreground: var(--foreground);
+      
+      --muted: #9B98A5;
+
+      --color-background: var(--background);
+      --color-muted: var(--muted);
+      --color-accent: var(--accent);
+      
+      --default: #2D2A42;
+      --default-foreground: var(--foreground);
+      
+      --accent: #9D91FF;
+      --accent-foreground: var(--foreground);
+      
+      --secondary: #FF9CAD;
+      --secondary-foreground: var(--foreground);
+      
+      --field-background: #2D2A42;
+      --field-foreground: var(--foreground);
+      --field-placeholder: #7A7885;
+      --field-border: transparent;
+      
+      --success: #81C784;
+      --success-foreground: var(--snow);
+      
+      --warning: #FFD54F;
+      --warning-foreground: var(--eclipse);
+      
+      --danger: #EF5350;
+      --danger-foreground: var(--snow);
+      
+      --segment: #2D2A42;
+      --segment-foreground: var(--foreground);
+      
+      --border: #3D3A52;
+      --separator: #3D3A52;
+      --focus: var(--accent);
+      --link: var(--foreground);
+      
+      --surface-shadow:
+        0 4px 12px 0 rgba(0, 0, 0, 0.3), 
+        0 2px 4px 0 rgba(0, 0, 0, 0.2);
+      --overlay-shadow:
+        0 6px 16px 0 rgba(0, 0, 0, 0.4), 
+        0 3px 6px 0 rgba(0, 0, 0, 0.3);
+      --field-shadow:
+        0 2px 4px 0 rgba(0, 0, 0, 0.2), 
+        0 1px 2px 0 rgba(0, 0, 0, 0.1);
+      
+      --gold: #FFD54F;
+      --warm-white: #FFF8F0;
+      --card-bg: #252336;
+      --star-glow: #FFD700;
+    }
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "common": {
+    "appName": "Voxora",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry"
+  },
+  "tab": {
+    "home": "Home",
+    "family": "Family",
+    "add": "Add",
+    "profile": "Profile"
+  },
+  "profile": {
+    "title": "Profile",
+    "settings": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "about": "About",
+    "version": "Version",
+    "logout": "Logout",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "help": "Help & Feedback"
+  },
+  "language": {
+    "title": "Select Language",
+    "chinese": "中文",
+    "english": "English",
+    "hindi": "हिंदी",
+    "current": "Current Language",
+    "saveMessage": "Language settings saved"
+  },
+  "home": {
+    "title": "Voxora Memories",
+    "welcome": "Welcome back",
+    "noMemories": "No memories yet",
+    "createFirst": "Create your first memory",
+    "quickCreate": "Quick Create",
+    "energy": "Energy",
+    "mood": "Mood"
+  },
+  "family": {
+    "title": "Family Space",
+    "members": "Family Members",
+    "online": "Online",
+    "offline": "Offline",
+    "addMember": "Add Member",
+    "invite": "Invite Family",
+    "sharedMemories": "Shared Memories",
+    "emotionPulse": "Emotion Pulse"
+  },
+  "memory": {
+    "title": "Memory Details",
+    "date": "Date",
+    "location": "Location",
+    "weather": "Weather",
+    "mood": "Mood",
+    "photos": "Photos",
+    "likes": "Likes",
+    "comments": "Comments",
+    "share": "Share",
+    "seal": "Seal Memory",
+    "unseal": "Unlock Memory",
+    "summarize": "AI Summary"
+  },
+  "addMemory": {
+    "title": "Add Memory",
+    "titlePlaceholder": "Enter memory title",
+    "datePlaceholder": "Select date",
+    "locationPlaceholder": "Enter location",
+    "weather": "Weather",
+    "mood": "Mood",
+    "photos": "Photos",
+    "addPhotos": "Add photos",
+    "save": "Save Memory",
+    "cancel": "Cancel"
+  },
+  "vlog": {
+    "title": "Vlog Creator",
+    "selectMemories": "Select Memories",
+    "selected": "Selected",
+    "generate": "Generate Vlog",
+    "generating": "Generating...",
+    "myVlogs": "My Vlogs",
+    "play": "Play",
+    "delete": "Delete",
+    "noVlogs": "No Vlogs yet",
+    "createFirst": "Create your first Vlog"
+  },
+  "pet": {
+    "title": "Pet Energy",
+    "feed": "Feed",
+    "play": "Play",
+    "evolve": "Evolve",
+    "level": "Level",
+    "experience": "Experience",
+    "energy": "Energy"
+  },
+  "emotions": {
+    "happy": "Happy",
+    "sad": "Sad",
+    "excited": "Excited",
+    "relaxed": "Relaxed",
+    "joyful": "Joyful",
+    "calm": "Calm",
+    "anxious": "Anxious",
+    "tired": "Tired"
+  },
+  "weather": {
+    "sunny": "Sunny",
+    "cloudy": "Cloudy",
+    "rainy": "Rainy",
+    "snowy": "Snowy",
+    "foggy": "Foggy",
+    "stormy": "Stormy"
+  }
+}
