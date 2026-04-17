@@ -214,14 +214,18 @@ export default function HomeScreen() {
         body: JSON.stringify({ mood: emotion }),
       });
 
+      console.log('快速心情记录响应状态:', response.status);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('快速心情记录创建成功:', result);
         // 关闭弹窗并刷新列表
         setShowEmotionPicker(false);
         setSelectedEmotion(null);
         fetchMemories();
       } else {
-        console.error('创建心情记录失败');
+        const errorText = await response.text();
+        console.error('创建心情记录失败:', response.status, errorText);
       }
     } catch (error) {
       console.error('创建心情记录失败:', error);
@@ -233,6 +237,10 @@ export default function HomeScreen() {
     const color = item.emotion ? EMOTION_COLORS[item.emotion] : '#7C6AFF';
     const icon = item.emotion ? EMOTION_ICONS[item.emotion] : 'heart';
 
+    const userName = String(item.userName || t('common.member'));
+    const date = String(item.date || '');
+    const recordMood = String(t('home.recordMood'));
+
     return (
       <Animated.View entering={FadeInUp.springify()}>
         <View style={[styles.quickMoodCard, { backgroundColor: `${color}10` }]}>
@@ -240,18 +248,18 @@ export default function HomeScreen() {
           <View style={[styles.quickMoodIconContainer, { backgroundColor: `${color}25` }]}>
             <Ionicons name={icon} size={28} color={color} />
           </View>
-          
+
           {/* 中间信息 */}
           <View style={styles.quickMoodInfo}>
             <View style={styles.quickMoodRow}>
               <Text style={[styles.quickMoodLabel, { color }]}>
-                {item.userName || t('common.member')}
+                {userName}
               </Text>
-              <Text style={styles.quickMoodText}>{t('home.recordMood')}</Text>
+              <Text style={styles.quickMoodText}>{recordMood}</Text>
             </View>
-            <Text style={styles.quickMoodTime}>{item.date}</Text>
+            <Text style={styles.quickMoodTime}>{date}</Text>
           </View>
-          
+
           {/* 右侧心情气泡 */}
           <View style={[styles.quickMoodBubble, { backgroundColor: `${color}20` }]}>
             <Ionicons name={icon} size={16} color={color} />
@@ -266,6 +274,11 @@ export default function HomeScreen() {
     const color = item.emotion ? EMOTION_COLORS[item.emotion] : '#7C6AFF';
     const icon = item.emotion ? EMOTION_ICONS[item.emotion] : 'heart';
 
+    const title = String(item.title || '');
+    const date = String(item.date || '');
+    const emotionCount = String(item.emotionCount || '');
+    const quickMoodText = String(t('common.quickMood'));
+
     return (
       <Animated.View entering={FadeInUp.springify()}>
         <TouchableOpacity
@@ -278,14 +291,14 @@ export default function HomeScreen() {
           </View>
           <View style={styles.emotionInfo}>
             <Text style={[styles.emotionTitle, { color }]}>
-              {item.title}
+              {title}
             </Text>
             <View style={styles.emotionMeta}>
-              <Text style={styles.emotionDate}>{item.date}</Text>
+              <Text style={styles.emotionDate}>{date}</Text>
               {item.isAphasia && (
                 <View style={[styles.aphasiaTag, { backgroundColor: `${color}30` }]}>
                   <Ionicons name="hand-left" size={10} color={color} />
-                  <Text style={[styles.aphasiaText, { color }]}>{t('common.quickMood')}</Text>
+                  <Text style={[styles.aphasiaText, { color }]}>{quickMoodText}</Text>
                 </View>
               )}
             </View>
@@ -293,7 +306,7 @@ export default function HomeScreen() {
           {item.emotionCount && (
             <View style={[styles.emotionCountBadge, { backgroundColor: color }]}>
               <Ionicons name="heart" size={10} color="#FFF" />
-              <Text style={styles.emotionCountText}>{item.emotionCount}</Text>
+              <Text style={styles.emotionCountText}>{emotionCount}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -303,6 +316,10 @@ export default function HomeScreen() {
 
   // 渲染图片记忆节点
   function ImageNode({ item }: { item: MemoryNode }) {
+    const title = String(item.title || '');
+    const date = String(item.date || '');
+    const location = String(item.location || '');
+
     return (
       <Animated.View entering={FadeInDown.springify()}>
         <TouchableOpacity
@@ -317,7 +334,7 @@ export default function HomeScreen() {
               style={styles.cardImage}
               resizeMode="cover"
             />
-            
+
             {/* 顶部标签 */}
             <View style={styles.cardOverlay}>
               {item.isMultiUser && item.userCount > 1 && (
@@ -327,27 +344,27 @@ export default function HomeScreen() {
               )}
               {item.emotion && (
                 <View style={[styles.emotionBadge, { backgroundColor: `${EMOTION_COLORS[item.emotion]}30` }]}>
-                  <Ionicons 
-                    name={EMOTION_ICONS[item.emotion]} 
-                    size={14} 
-                    color={EMOTION_COLORS[item.emotion]} 
+                  <Ionicons
+                    name={EMOTION_ICONS[item.emotion]}
+                    size={14}
+                    color={EMOTION_COLORS[item.emotion]}
                   />
                 </View>
               )}
             </View>
           </View>
-          
+
           {/* 内容 */}
           <View style={styles.cardContent}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
+            <Text style={styles.cardTitle}>{title}</Text>
             <View style={styles.cardMeta}>
               <View style={styles.metaItem}>
                 <Ionicons name="calendar" size={12} color="#999" />
-                <Text style={styles.metaText}>{item.date}</Text>
+                <Text style={styles.metaText}>{date}</Text>
               </View>
               <View style={styles.metaItem}>
                 <Ionicons name="location" size={12} color="#999" />
-                <Text style={styles.metaText}>{item.location}</Text>
+                <Text style={styles.metaText}>{location}</Text>
               </View>
             </View>
           </View>
@@ -382,10 +399,10 @@ export default function HomeScreen() {
       {/* 标题栏 */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>{t('home.subtitle')}</Text>
-          <Text style={styles.username}>Voxora {t('family.title')}</Text>
+          <Text style={styles.greeting}>{String(t('home.subtitle'))}</Text>
+          <Text style={styles.username}>{String(`Voxora ${t('family.title')}`)}</Text>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.familyButton}
           onPress={() => router.push('/family')}
         >
@@ -407,15 +424,15 @@ export default function HomeScreen() {
             style={styles.quickActionGradient}
           >
             <Ionicons name="heart-circle" size={20} color="#FFF" />
-            <Text style={styles.quickActionText}>{t('home.quickMood')}</Text>
+            <Text style={styles.quickActionText}>{String(t('home.quickMood'))}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
 
       {/* 时间线标题 */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{t('home.title')}</Text>
-        <Text style={styles.sectionSubtitle}>{t('home.subtitle')}</Text>
+        <Text style={styles.sectionTitle}>{String(t('home.title'))}</Text>
+        <Text style={styles.sectionSubtitle}>{String(t('home.subtitle'))}</Text>
       </View>
 
       {/* 记忆流 */}
@@ -445,9 +462,9 @@ export default function HomeScreen() {
         >
           <View style={styles.emotionModal}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>{t('addMemory.selectEmotion')}</Text>
+            <Text style={styles.modalTitle}>{String(t('addMemory.selectEmotion'))}</Text>
             <Text style={styles.modalSubtitle}>
-              {t('home.quickMoodTip')}
+              {String(t('home.quickMoodTip'))}
             </Text>
             <EmotionPicker
               selectedEmotion={selectedEmotion || undefined}

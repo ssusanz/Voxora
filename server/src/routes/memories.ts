@@ -129,12 +129,16 @@ router.post('/', async (req, res) => {
 
 // 心情快速记录（无需标题，只需心情和用户信息）
 router.post('/quick-mood', async (req, res) => {
+  console.log('收到快速心情记录请求:', req.body);
   try {
     const { mood, userId, familyId } = req.body;
 
     if (!mood) {
+      console.log('错误：心情不能为空');
       return res.status(400).json({ error: '心情不能为空' });
     }
+
+    console.log('开始创建心情记录:', { mood, userId, familyId });
 
     const client = getSupabaseClient();
     const now = new Date().toISOString();
@@ -157,6 +161,8 @@ router.post('/quick-mood', async (req, res) => {
       is_quick_mood: true, // 标识为心情快速记录
     };
 
+    console.log('准备插入数据库:', newMemory);
+
     const { data, error } = await client
       .from('memories')
       .insert(newMemory)
@@ -164,9 +170,11 @@ router.post('/quick-mood', async (req, res) => {
       .single();
 
     if (error) {
+      console.error('数据库插入失败:', error);
       throw new Error(`插入失败: ${error.message}`);
     }
 
+    console.log('心情记录创建成功:', data);
     res.status(201).json(data);
   } catch (error: any) {
     console.error('心情快速记录失败:', error);
