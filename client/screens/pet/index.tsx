@@ -17,6 +17,8 @@ import Animated, {
   Easing
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '@/utils/localeFormat';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -31,7 +33,7 @@ interface Pet {
   energy: number;
   maxEnergy: number;
   avatarEmoji: string;
-  lastFed: string;
+  lastFedAt: number;
   evolutionStage: number;
 }
 
@@ -40,7 +42,7 @@ interface EnergySource {
   type: 'memory' | 'like' | 'comment' | 'family';
   description: string;
   amount: number;
-  timestamp: string;
+  timestamp: number;
   fromMember: string;
 }
 
@@ -54,16 +56,16 @@ const mockPet: Pet = {
   energy: 85,
   maxEnergy: 100,
   avatarEmoji: 'star',
-  lastFed: '2小时前',
+  lastFedAt: Date.now() - 2 * 60 * 60 * 1000,
   evolutionStage: 2,
 };
 
 const mockEnergySources: EnergySource[] = [
-  { id: '1', type: 'memory', description: '发布了新回忆', amount: 50, timestamp: '10分钟前', fromMember: '爸爸' },
-  { id: '2', type: 'like', description: '收到点赞', amount: 10, timestamp: '30分钟前', fromMember: '妈妈' },
-  { id: '3', type: 'comment', description: '收到评论', amount: 20, timestamp: '1小时前', fromMember: '小美' },
-  { id: '4', type: 'family', description: '家庭互动', amount: 30, timestamp: '2小时前', fromMember: '全家' },
-  { id: '5', type: 'memory', description: '发布了新回忆', amount: 50, timestamp: '3小时前', fromMember: '我' },
+  { id: '1', type: 'memory', description: '发布了新回忆', amount: 50, timestamp: Date.now() - 10 * 60 * 1000, fromMember: '爸爸' },
+  { id: '2', type: 'like', description: '收到点赞', amount: 10, timestamp: Date.now() - 30 * 60 * 1000, fromMember: '妈妈' },
+  { id: '3', type: 'comment', description: '收到评论', amount: 20, timestamp: Date.now() - 60 * 60 * 1000, fromMember: '小美' },
+  { id: '4', type: 'family', description: '家庭互动', amount: 30, timestamp: Date.now() - 2 * 60 * 60 * 1000, fromMember: '全家' },
+  { id: '5', type: 'memory', description: '发布了新回忆', amount: 50, timestamp: Date.now() - 3 * 60 * 60 * 1000, fromMember: '我' },
 ];
 
 // 宠物心情动画
@@ -231,6 +233,8 @@ function ExperienceBar({ current, max, level }: { current: number; max: number; 
 }
 
 function EnergySourceItem({ source, index }: { source: EnergySource; index: number }) {
+  const { t } = useTranslation();
+  const timeLabel = formatRelativeTime(source.timestamp, t);
   const typeIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
     memory: 'images-outline',
     like: 'heart-outline',
@@ -255,7 +259,9 @@ function EnergySourceItem({ source, index }: { source: EnergySource; index: numb
       </View>
       <View style={styles.energyContent}>
         <Text style={styles.energyDesc}>{source.description}</Text>
-        <Text style={styles.energyMeta}>来自 {source.fromMember} · {source.timestamp}</Text>
+        <Text style={styles.energyMeta}>
+          {t('pet.energyMeta', { member: source.fromMember, time: timeLabel })}
+        </Text>
       </View>
       <View style={styles.energyAmount}>
         <Text style={styles.energyValue}>+{source.amount}</Text>
@@ -325,15 +331,17 @@ function EvolutionStage({ stage }: { stage: number }) {
 }
 
 export default function PetScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [pet] = useState<Pet>(mockPet);
   const [energySources] = useState<EnergySource[]>(mockEnergySources);
+  const lastFedLabel = formatRelativeTime(pet.lastFedAt, t);
 
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']} style={styles.screen}>
       <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>宠物能量</Text>
+          <Text style={styles.headerTitle}>{t('pet.title')}</Text>
           <TouchableOpacity style={styles.helpButton}>
             <Ionicons name="help-circle-outline" size={22} color="#8B8680" />
           </TouchableOpacity>
@@ -351,7 +359,7 @@ export default function PetScreen() {
               </View>
               <View style={styles.lastFed}>
                 <Ionicons name="time-outline" size={14} color="#8B8680" />
-                <Text style={styles.lastFedText}>上次喂食 {pet.lastFed}</Text>
+                <Text style={styles.lastFedText}>{t('pet.lastFed', { time: lastFedLabel })}</Text>
               </View>
             </View>
             

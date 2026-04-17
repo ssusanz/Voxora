@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '@/utils/localeFormat';
 
 // 白板条目
 interface WhiteboardItem {
@@ -23,6 +25,7 @@ export default function Whiteboard({
   onAddText,
   isEditable = true 
 }: WhiteboardProps) {
+  const { t } = useTranslation();
   const [isAdding, setIsAdding] = useState(false);
   const [newText, setNewText] = useState('');
 
@@ -40,7 +43,7 @@ export default function Whiteboard({
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Ionicons name="create-outline" size={18} color="#7C6AFF" />
-          <Text style={styles.title}>家庭白板</Text>
+          <Text style={styles.title}>{t('family.familyBoard')}</Text>
         </View>
         {isEditable && (
           <View style={styles.actions}>
@@ -59,8 +62,8 @@ export default function Whiteboard({
         {items.length === 0 && !isAdding ? (
           <View style={styles.emptyState}>
             <Ionicons name="document-text-outline" size={32} color="#E0E0E0" />
-            <Text style={styles.emptyText}>家庭共同目标</Text>
-            <Text style={styles.emptyHint}>点击上方图标添加</Text>
+            <Text style={styles.emptyText}>{t('family.whiteboardEmpty')}</Text>
+            <Text style={styles.emptyHint}>{t('family.whiteboardEmptyHint')}</Text>
           </View>
         ) : (
           <ScrollView
@@ -83,7 +86,7 @@ export default function Whiteboard({
                 </View>
                 <View style={styles.itemMeta}>
                   <Text style={styles.itemAuthor}>{item.author}</Text>
-                  <Text style={styles.itemTime}>{formatTime(item.timestamp)}</Text>
+                  <Text style={styles.itemTime}>{formatRelativeTime(item.timestamp, t)}</Text>
                 </View>
               </View>
             ))}
@@ -93,7 +96,7 @@ export default function Whiteboard({
               <View style={styles.inputContainer}>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="写下家庭目标..."
+                  placeholder={t('family.whiteboardPlaceholder')}
                   placeholderTextColor="#999"
                   value={newText}
                   onChangeText={setNewText}
@@ -127,22 +130,6 @@ export default function Whiteboard({
       </View>
     </View>
   );
-}
-
-function formatTime(date: Date): string {
-  const now = Date.now();
-  const diffMs = now - date.getTime();
-
-  if (diffMs < 60 * 1000) return '刚刚';
-
-  const minutes = Math.floor(diffMs / (60 * 1000));
-  if (minutes < 60) return `${minutes}分钟前`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}小时前`;
-
-  const days = Math.floor(hours / 24);
-  return `${days}天前`;
 }
 
 const styles = StyleSheet.create({

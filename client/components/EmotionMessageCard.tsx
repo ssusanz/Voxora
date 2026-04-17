@@ -9,6 +9,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '@/utils/localeFormat';
 
 interface EmotionMessageCardProps {
   memberName: string;
@@ -34,18 +36,6 @@ const EMOTION_CONFIG: Record<string, { icon: keyof typeof Ionicons.glyphMap; col
 // 响应选项
 const RESPONSE_OPTIONS = ['love', 'joy', 'calm'];
 
-// 格式化时间
-function formatTime(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}小时前`;
-  return `${Math.floor(hours / 24)}天前`;
-}
-
 function EmotionMessageCardCore({ card, onDismiss, onRespond }: {
   card: {
     fromMember: string;
@@ -56,6 +46,7 @@ function EmotionMessageCardCore({ card, onDismiss, onRespond }: {
   onDismiss?: () => void;
   onRespond?: (emotion: string) => void;
 }) {
+  const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(true);
   const scale = useSharedValue(1);
   
@@ -105,7 +96,7 @@ function EmotionMessageCardCore({ card, onDismiss, onRespond }: {
           </View>
           <View style={styles.headerText}>
             <Text style={styles.memberName}>{card.fromMember}</Text>
-            <Text style={styles.timestamp}>{formatTime(card.timestamp)}</Text>
+            <Text style={styles.timestamp}>{formatRelativeTime(card.timestamp, t)}</Text>
           </View>
         </View>
         
@@ -129,7 +120,7 @@ function EmotionMessageCardCore({ card, onDismiss, onRespond }: {
         
         {/* 响应选项 */}
         <View style={styles.responseSection}>
-          <Text style={styles.responseTitle}>送TA回应</Text>
+          <Text style={styles.responseTitle}>{t('emotionMessage.sendResponse')}</Text>
           <View style={styles.responseButtons}>
             {RESPONSE_OPTIONS.map((emotion) => {
               const emotionConfig = EMOTION_CONFIG[emotion];

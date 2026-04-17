@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 function stripTrailingSlash(url: string): string {
   return url.replace(/\/$/, '');
@@ -11,23 +12,46 @@ function isProbablyLocalhost(url: string): boolean {
 function normalizeHttpUrl(input: string): string {
   const trimmed = input.trim();
   if (/^https?:\/\//i.test(trimmed)) return stripTrailingSlash(trimmed);
-  // Allow users to set "116.237.2.237:19091" in env without scheme.
+  // Allow users to set "host:port" in env without scheme.
   return stripTrailingSlash(`http://${trimmed.replace(/^\/+/, '')}`);
 }
 
+function withHttpScheme(url: string): string {
+  const t = url.trim();
+  if (/^https?:\/\//i.test(t)) return t;
+  return `http://${t.replace(/^\/+/, '')}`;
+}
+
+/** True when both strings refer to the same origin (scheme+host+port). */
+function sameHttpOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(withHttpScheme(a)).origin === new URL(withHttpScheme(b)).origin;
+  } catch {
+    return false;
+  }
+}
+
 function getExpoHost(): string | undefined {
-  // Highest-signal for voxora-deploy.sh:
-  // - EXPO_PACKAGER_PROXY_URL is set to "http://<PUBLIC_IP>:<METRO_PORT>"
-  // - REACT_NATIVE_PACKAGER_HOSTNAME is set to "<PUBLIC_IP>"
-  const proxy = process.env.EXPO_PACKAGER_PROXY_URL;
-  if (typeof proxy === 'string' && proxy.length > 0) {
-    try {
-      const u = new URL(proxy);
-      return u.host; // include port when present
-    } catch {
-      // ignore
+  const proxy = process.env.EXPO_PACKAGER_PROXY_URL?.trim();
+  const backend = process.env.EXPO_PUBLIC_BACKEND_BASE_URL?.trim();
+
+  // Coze `.cozeproj/scripts/dev_run.sh` sets EXPO_PACKAGER_PROXY_URL === EXPO_PUBLIC_BACKEND_BASE_URL
+  // (both point at the API). That is NOT the Metro packager host — skip so we fall through to Constants / RN hostname.
+  if (proxy) {
+    const proxyIsApiOrigin = Boolean(backend && sameHttpOrigin(proxy, backend));
+    if (!proxyIsApiOrigin) {
+      try {
+        const u = new URL(withHttpScheme(proxy));
+        return u.host;
+      } catch {
+        // ignore
+      }
     }
   }
+
+  // Local device / scripts: packager proxy is a real Metro URL (host + bundler port)
+  // - e.g. EXPO_PACKAGER_PROXY_URL=http://<PUBLIC_IP>:<METRO_PORT>
+  // - REACT_NATIVE_PACKAGER_HOSTNAME=<PUBLIC_IP>
 
   const packagerHostname = process.env.REACT_NATIVE_PACKAGER_HOSTNAME;
   if (typeof packagerHostname === 'string' && packagerHostname.length > 0) {
@@ -35,8 +59,8 @@ function getExpoHost(): string | undefined {
   }
 
   // Common cases:
-  // - Constants.expoConfig.hostUri: "116.237.2.237:18081"
-  // - Constants.manifest2.extra.expoGo.debuggerHost: "192.168.1.13:18081"
+  // - Constants.expoConfig.hostUri: "host:metroPort"
+  // - Constants.manifest2.extra.expoGo.debuggerHost: "192.168.x.x:port"
   const hostUri = (Constants.expoConfig as any)?.hostUri as string | undefined;
   if (hostUri) return hostUri.split('/')[0];
 
@@ -52,7 +76,7 @@ function getExpoHost(): string | undefined {
 
   const linkingUri = (Constants as any)?.linkingUri as string | undefined;
   if (typeof linkingUri === 'string' && linkingUri.length > 0) {
-    // e.g. exp://116.237.2.237:18081
+    // e.g. exp://host:metroPort
     const m = linkingUri.match(/^[a-z]+:\/\/([^/]+)/i);
     if (m?.[1]) return m[1];
   }
@@ -61,19 +85,32 @@ function getExpoHost(): string | undefined {
 }
 
 function inferBackendPortFromExpoHost(host: string): number {
-  const [, maybePort] = host.split(':');
+  const [hostname, maybePort] = host.split(':');
   const metroPort = maybePort ? Number(maybePort) : undefined;
-  // voxora-deploy.sh uses METRO_PORT=18081 and BACKEND_PORT=19091
+  // 外网脚本：Metro 18081 → 后端 19091
   if (metroPort === 18081) return 19091;
-  // If we only know hostname (no port), default to deploy backend port.
-  if (!metroPort) return 19091;
+  // 本机 / 常见 Expo：8081 → 后端 9091
+  if (metroPort === 8081) return 9091;
+  // Coze 模板默认 Expo 端口（见 .cozeproj/scripts/dev_run.sh EXPO_PORT=5000）
+  if (metroPort === 5000) return 9091;
+  if (!metroPort) {
+    if (/^(localhost|127\.0\.0\.1)$/i.test(hostname)) return 9091;
+    // 仅主机名（常见于 REACT_NATIVE_PACKAGER_HOSTNAME=公网 IP）：对齐外网映射常用后端端口
+    return 19091;
+  }
   return 9091;
 }
 
 export function getBackendBaseUrl(): string {
-  const env = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
-  if (typeof env === 'string' && env.trim().length > 0 && !isProbablyLocalhost(env)) {
-    return normalizeHttpUrl(env);
+  const env = process.env.EXPO_PUBLIC_BACKEND_BASE_URL?.trim();
+  if (env) {
+    if (!isProbablyLocalhost(env)) {
+      return normalizeHttpUrl(env);
+    }
+    // localhost：Web 直连本机后端；真机仍配 localhost 时继续走 Expo host 推断
+    if (Platform.OS === 'web') {
+      return normalizeHttpUrl(env);
+    }
   }
 
   const host = getExpoHost();
@@ -83,7 +120,6 @@ export function getBackendBaseUrl(): string {
     return normalizeHttpUrl(`http://${hostnameOnly}:${port}`);
   }
 
-  // Last resort for local web/dev
-  return normalizeHttpUrl(env && env.trim().length > 0 ? env : 'http://localhost:9091');
+  return normalizeHttpUrl(env && env.length > 0 ? env : 'http://localhost:9091');
 }
 

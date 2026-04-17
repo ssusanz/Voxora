@@ -251,3 +251,5 @@ import { Screen } from '../../../components/Screen';
 ## 本地开发
 
 `coze dev`：用来首次启动前后端服务，也可以用来重启前后端服务（该命令会先尝试杀掉占用端口的进程，再启动服务）
+
+**Coze 空间从 GitHub 拉取后部署**：平台会通过 `.cozeproj/scripts/dev_run.sh` 注入 `EXPO_PUBLIC_BACKEND_BASE_URL`（及与之一致的 `EXPO_PACKAGER_PROXY_URL`）。仓库内 `client/utils/backend.ts` 的 `getBackendBaseUrl()` 已按该约定解析，避免把「后端地址」误当成 Metro 主机；物理机外网调试仍可用 `scripts/voxora-deploy.sh` 自行导出公网 IP 相关变量。
