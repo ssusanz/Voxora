@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-audio';
+import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 
 interface VoiceInputProps {

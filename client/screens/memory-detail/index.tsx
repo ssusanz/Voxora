@@ -20,7 +20,7 @@ import Animated, {
   Extrapolation
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Video, ResizeMode } from 'expo-video';
+import { Video, ResizeMode } from 'expo-av';
 
 import EmotionMessageCard from '@/components/EmotionMessageCard';
 import GlowingCluster from '@/components/GlowingCluster';

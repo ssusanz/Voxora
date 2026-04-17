@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
-import { Video, ResizeMode } from 'expo-video';
+import { Video, ResizeMode } from 'expo-av';
 import { useTranslation } from 'react-i18next';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');

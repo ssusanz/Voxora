@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Video, ResizeMode } from 'expo-video';
+import { Video, ResizeMode } from 'expo-av';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from 'react-i18next';
 
