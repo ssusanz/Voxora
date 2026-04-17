@@ -285,9 +285,10 @@ export default function FamilySpaceScreen() {
               onAddText={(text: string) => {
                 setWhiteboardContent(prev => [...prev, {
                   id: Date.now().toString(),
-                  text,
+                  type: 'text' as const,
+                  content: text,
                   author: '我',
-                  authorAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200',
+                  timestamp: new Date(),
                 }]);
               }}
             />

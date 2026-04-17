@@ -1,10 +1,11 @@
 import { Screen } from '@/components/Screen';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from 'expo-router';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useToast } from '@/hooks/useToast';
 
@@ -18,11 +19,78 @@ interface MenuItem {
   action?: () => void;
 }
 
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+interface StatsData {
+  memories: number;
+  likes: number;
+  interactions: number;
+}
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
+
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [statsData, setStatsData] = useState<StatsData>({
+    memories: 0,
+    likes: 0,
+    interactions: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 获取用户数据
+  const fetchUserData = useCallback(async () => {
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '';
+      const response = await fetch(`${apiUrl}/api/v1/users/me`);
+      const data = await response.json();
+      setUserData(data);
+    } catch (error) {
+      console.error('获取用户数据失败:', error);
+    }
+  }, []);
+
+  // 获取统计数据
+  const fetchStatsData = useCallback(async () => {
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '';
+      const response = await fetch(`${apiUrl}/api/v1/memories?limit=1000`);
+      const data = await response.json();
+
+      if (data && data.data) {
+        const memories = data.data || [];
+        const totalLikes = memories.reduce((sum: number, m: any) => sum + (m.likes || 0), 0);
+
+        setStatsData({
+          memories: memories.length,
+          likes: totalLikes,
+          interactions: memories.length * 3, // 模拟互动数
+        });
+      }
+    } catch (error) {
+      console.error('获取统计数据失败:', error);
+    }
+  }, []);
+
+  // 页面聚焦时刷新数据
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        setIsLoading(true);
+        await Promise.all([fetchUserData(), fetchStatsData()]);
+        setIsLoading(false);
+      };
+      loadData();
+    }, [fetchUserData, fetchStatsData])
+  );
 
   const menuItems: MenuItem[] = [
     { id: '1', icon: 'person-outline', title: t('profile.personalInfo'), subtitle: t('profile.personalInfoSub'), color: '#7C6AFF' },
@@ -36,6 +104,22 @@ export default function ProfileScreen() {
   const handleMenuPress = (item: MenuItem) => {
     showInfo(t('profile.clickedItem', { item: item.title }));
   };
+
+  if (isLoading) {
+    return (
+      <Screen safeAreaEdges={['left', 'right', 'bottom']} style={styles.screen}>
+        <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>{t('profile.title')}</Text>
+          </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#7C6AFF" />
+            <Text style={styles.loadingText}>{t('common.loading')}</Text>
+          </View>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']} style={styles.screen}>
@@ -57,15 +141,15 @@ export default function ProfileScreen() {
           <Animated.View entering={FadeInUp.duration(500)} style={styles.profileCard}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>小</Text>
+                <Text style={styles.avatarText}>{userData?.name?.charAt(0) || '小'}</Text>
               </View>
               <View style={styles.onlineBadge}>
                 <Ionicons name="checkmark" size={10} color="#FFFFFF" />
               </View>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.userName}>{t('family.familyBond')}</Text>
-              <Text style={styles.userEmail}>user@example.com</Text>
+              <Text style={styles.userName}>{userData?.name || t('family.familyBond')}</Text>
+              <Text style={styles.userEmail}>{userData?.email || 'user@example.com'}</Text>
               <View style={styles.familyBadge}>
                 <Ionicons name="people" size={12} color="#7C6AFF" />
                 <Text style={styles.familyText}>{t('family.title')}</Text>
@@ -79,17 +163,17 @@ export default function ProfileScreen() {
           {/* 统计卡片 */}
           <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.statsCard}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>128</Text>
+              <Text style={styles.statValue}>{statsData.memories}</Text>
               <Text style={styles.statLabel}>{t('profile.memories')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>456</Text>
+              <Text style={styles.statValue}>{statsData.likes}</Text>
               <Text style={styles.statLabel}>{t('profile.likes')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>89</Text>
+              <Text style={styles.statValue}>{statsData.interactions}</Text>
               <Text style={styles.statLabel}>{t('profile.interactions')}</Text>
             </View>
           </Animated.View>
@@ -162,6 +246,17 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: '#2D3436',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#8B8680',
   },
   languageButton: {
     width: 44,

@@ -303,14 +303,42 @@ export default function MemoryDetailScreen() {
   }));
 
   // 发送情感反应
-  const handleSendReaction = useCallback(() => {
+  const handleSendReaction = useCallback(async () => {
     if (selectedReaction) {
-      console.log('发送情感反应:', selectedReaction, commentText);
-      setShowReactionModal(false);
-      setSelectedReaction(null);
-      setCommentText('');
+      try {
+        const memoryId = params.memoryId || realMemory?.id || memory.id;
+        /**
+         * 服务端文件：server/src/routes/memories.ts
+         * 接口：POST /api/v1/memories/:id/reactions
+         * Path 参数：id: string
+         * Body 参数：memberId: string, message: string, emotion: string
+         */
+        const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${memoryId}/reactions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            memberId: 'user_1',
+            message: commentText,
+            emotion: selectedReaction,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('发送情感失败');
+        }
+
+        setShowReactionModal(false);
+        setSelectedReaction(null);
+        setCommentText('');
+        showSuccess(t('memoryDetail.sendSuccess'));
+      } catch (error) {
+        console.error('发送情感失败:', error);
+        showError(t('memoryDetail.sendFailed'));
+      }
     }
-  }, [selectedReaction, commentText]);
+  }, [selectedReaction, commentText, params.memoryId, realMemory, memory.id, showSuccess, showError]);
 
   // 隐藏回忆
   const handleHideMemory = useCallback(async () => {
@@ -348,6 +376,12 @@ export default function MemoryDetailScreen() {
 
   // 生成回忆总结
   const handleGenerateSummary = useCallback(async () => {
+    const memoryId = params.memoryId || realMemory?.id;
+    if (!memoryId) {
+      showError(t('memoryDetail.memoryIdNotFound'));
+      return;
+    }
+
     setIsGeneratingSummary(true);
     setSummaryImageUrl(null);
     try {
@@ -356,7 +390,7 @@ export default function MemoryDetailScreen() {
        * 接口：POST /api/v1/memories/:id/summarize
        * Path 参数：id: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${memory.id}/summarize`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${memoryId}/summarize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -364,20 +398,21 @@ export default function MemoryDetailScreen() {
       });
 
       if (!response.ok) {
-        throw new Error('生成总结失败');
+        const errorData = await response.json();
+        throw new Error(errorData.error || '生成总结失败');
       }
 
       const data = await response.json();
       setSummaryText(data.summary);
       setSummaryImageUrl(data.imageUrl || null);
       setShowSummaryModal(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('生成总结失败:', error);
       showError(t('memoryDetail.summaryFailed'));
     } finally {
       setIsGeneratingSummary(false);
     }
-  }, [memory.id]);
+  }, [params.memoryId, realMemory, showError]);
 
   // 处理语音输入完成
   const handleVoiceInputComplete = useCallback((transcript: string) => {
@@ -395,6 +430,12 @@ export default function MemoryDetailScreen() {
 
   // 添加语音互动到家人回应
   const addVoiceReaction = useCallback(async (transcript: string, member: FamilyMember) => {
+    const memoryId = params.memoryId || realMemory?.id;
+    if (!memoryId) {
+      showError(t('memoryDetail.memoryIdNotFound'));
+      return;
+    }
+
     try {
       /**
        * 服务端文件：server/src/routes/memories.ts
@@ -402,7 +443,7 @@ export default function MemoryDetailScreen() {
        * Path 参数：id: string
        * Body 参数：memberId: string, message: string, emotion: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${memory.id}/reactions`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/memories/${memoryId}/reactions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -432,11 +473,12 @@ export default function MemoryDetailScreen() {
 
       memory.reactions.unshift(newReaction);
       setSelectedFamilyMember(null);
+      showSuccess(t('memoryDetail.addSuccess'));
     } catch (error) {
       console.error('添加互动失败:', error);
       showError(t('memoryDetail.interactionFailed'));
     }
-  }, [memory]);
+  }, [params.memoryId, realMemory, memory, showSuccess, showError]);
 
   // 选择家庭成员
   const handleSelectMember = useCallback((member: FamilyMember) => {
@@ -613,7 +655,7 @@ export default function MemoryDetailScreen() {
               {realMemory.images.map((imageUrl, index) => {
                 const isVideo = isVideoUrl(imageUrl);
                 return (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     key={index}
                     style={[
                       styles.photoWallItem,
@@ -621,6 +663,13 @@ export default function MemoryDetailScreen() {
                       realMemory.images.length === 2 && styles.photoWallItemHalf,
                     ]}
                     activeOpacity={0.8}
+                    onPress={() => {
+                      // 点击图片打开查看器（暂时只展示单张）
+                      router.push('/photo-viewer', {
+                        images: JSON.stringify(realMemory.images),
+                        initialIndex: index,
+                      });
+                    }}
                   >
                     {isVideo ? (
                       <Video
