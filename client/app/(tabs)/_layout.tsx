@@ -6,8 +6,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { View, StyleSheet, TouchableOpacity, Text, Modal } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import VoiceInput from '@/components/VoiceInput';
+import { useToast } from '@/hooks/useToast';
+import {
+  interpretTabVoiceCommand,
+  routeForTabVoiceTarget,
+  type TabVoiceTarget,
+} from '@/utils/voiceTabCommand';
 
 function TabBarIcon({ name, color, focused }: { name: keyof typeof Ionicons.glyphMap; color: string; focused: boolean }) {
   return (
@@ -23,10 +30,38 @@ type AddButtonProps = {
 };
 
 // 将 AddButton 组件定义在 TabLayout 外部，避免每次渲染时重新创建
-function AddButton(props: AddButtonProps) {
-  const { t } = useTranslation();
+function AddButton(_props: AddButtonProps) {
+  const { t, i18n } = useTranslation();
   const router = useSafeRouter();
+  const { showSuccess, showInfo } = useToast();
   const [showMenu, setShowMenu] = useState(false);
+  const [showVoiceCommand, setShowVoiceCommand] = useState(false);
+  const longPressConsumed = useRef(false);
+
+  const toastKeyForTarget = useCallback((target: TabVoiceTarget): string => {
+    const map: Record<TabVoiceTarget, string> = {
+      'add-memory': 'tab.voiceOpenAddMemory',
+      vlog: 'tab.voiceOpenVlog',
+      moments: 'tab.voiceOpenMoments',
+      family: 'tab.voiceOpenFamily',
+      home: 'tab.voiceOpenHome',
+      profile: 'tab.voiceOpenProfile',
+    };
+    return map[target];
+  }, []);
+
+  const onVoiceTranscribed = useCallback(
+    (text: string) => {
+      const target = interpretTabVoiceCommand(text);
+      if (!target) {
+        showInfo(t('tab.voiceCommandUnknown'));
+        return;
+      }
+      showSuccess(t(toastKeyForTarget(target)));
+      router.push(routeForTabVoiceTarget(target));
+    },
+    [router, showInfo, showSuccess, t, toastKeyForTarget]
+  );
 
   const handleAddMemoryPress = () => {
     setShowMenu(false);
@@ -41,7 +76,23 @@ function AddButton(props: AddButtonProps) {
   return (
     <>
       <TouchableOpacity
-        onPress={() => setShowMenu(true)}
+        accessibilityRole="button"
+        accessibilityHint={String(t('tab.addVoiceLongPressHint'))}
+        delayLongPress={420}
+        onPressIn={() => {
+          longPressConsumed.current = false;
+        }}
+        onLongPress={() => {
+          longPressConsumed.current = true;
+          setShowVoiceCommand(true);
+        }}
+        onPress={() => {
+          if (longPressConsumed.current) {
+            longPressConsumed.current = false;
+            return;
+          }
+          setShowMenu(true);
+        }}
         activeOpacity={0.8}
         style={styles.addButtonWrapper}
       >
@@ -96,6 +147,18 @@ function AddButton(props: AddButtonProps) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <VoiceInput
+        key={`voice-cmd-${i18n.resolvedLanguage ?? i18n.language}`}
+        visible={showVoiceCommand}
+        onClose={() => setShowVoiceCommand(false)}
+        mode="transcribe"
+        title={t('tab.voiceCommandTitle', { defaultValue: '语音指令' })}
+        subtitle={t('tab.voiceCommandSubtitle', {
+          defaultValue: '说出想去的位置，例如「我要增加一个记忆」「打开瞬间」',
+        })}
+        onTranscribed={onVoiceTranscribed}
+      />
     </>
   );
 }

@@ -242,7 +242,13 @@ export default function VoiceInput({
         }
 
         const audioBase64 = await blobToBase64(audioBlob);
-        console.log('Web 平台：音频已转为 Base64，长度:', audioBase64.length);
+        console.log('Web 平台：音频已转为 Base64，长度:', audioBase64?.length ?? 0);
+        if (typeof audioBase64 !== 'string' || audioBase64.length < MIN_AUDIO_SIZE) {
+          console.error('Web 平台：Base64 无效或过短');
+          showToast('未检测到有效音频，请重试并对着麦克风说话', 'error');
+          resolve();
+          return;
+        }
 
         // 根据 mimeType 确定文件扩展名
         const extension = mimeType.includes('ogg') ? '.ogg' : mimeType.includes('mp4') ? '.mp4' : '.webm';
@@ -300,8 +306,9 @@ export default function VoiceInput({
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
-        const base64 = result.split(',')[1];
-        resolve(base64);
+        const parts = typeof result === 'string' ? result.split(',') : [];
+        const base64 = parts.length > 1 ? parts[1] : parts[0];
+        resolve(base64 && base64.length > 0 ? base64 : '');
       };
       reader.onerror = reject;
       reader.readAsDataURL(blob);
@@ -372,21 +379,34 @@ export default function VoiceInput({
 
       console.log('移动平台：录音文件 URI:', uri);
 
-      const audioBase64 = await (FileSystem as any).readAsStringAsync(uri, {
-        encoding: (FileSystem as any).EncodingType.Base64,
-      });
-      console.log('移动平台：音频已转为 Base64，长度:', audioBase64.length);
+      let audioBase64: string;
+      try {
+        const FS = FileSystem as {
+          readAsStringAsync: (u: string, o: { encoding: string }) => Promise<string>;
+          EncodingType?: { Base64: string };
+        };
+        const enc = FS.EncodingType?.Base64 ?? 'base64';
+        audioBase64 = await FS.readAsStringAsync(uri, { encoding: enc });
+      } catch (readErr) {
+        console.error('移动平台：读取录音文件失败:', readErr);
+        showToast('录音文件读取失败', 'error');
+        setNativeRecording(null);
+        return;
+      }
+
+      const b64 = typeof audioBase64 === 'string' ? audioBase64 : '';
+      console.log('移动平台：音频已转为 Base64，长度:', b64.length);
 
       // 移动端阈值检查：至少 1KB
       const MIN_AUDIO_SIZE = 1000;
-      if (audioBase64.length < MIN_AUDIO_SIZE) {
-        console.error('移动平台：音频太小，当前:', audioBase64.length, 'bytes，阈值:', MIN_AUDIO_SIZE, 'bytes');
+      if (b64.length < MIN_AUDIO_SIZE) {
+        console.error('移动平台：音频太小，当前:', b64.length, 'bytes，阈值:', MIN_AUDIO_SIZE, 'bytes');
         showToast('未检测到有效音频，请重试并对着麦克风说话', 'error');
         setNativeRecording(null);
         return;
       }
 
-      await uploadAudio(audioBase64, 'recording.m4a', 'audio/m4a');
+      await uploadAudio(b64, 'recording.m4a', 'audio/m4a');
 
     } catch (error: any) {
       console.error('移动平台处理失败:', error);
@@ -447,6 +467,11 @@ export default function VoiceInput({
 
   // ============ 上传音频到后端 ============
   const uploadAudio = async (audioBase64: string, filename: string, mimeType: string) => {
+    if (typeof audioBase64 !== 'string' || audioBase64.trim().length < 100) {
+      showToast('未检测到有效音频，请重试并对着麦克风说话', 'error');
+      return;
+    }
+
     setIsProcessing(true);
 
     const baseUrl = getBackendBaseUrl();
@@ -474,7 +499,15 @@ export default function VoiceInput({
       if (!apiResponse.ok) {
         const errorText = await apiResponse.text();
         console.error('后端 API 错误:', apiResponse.status, errorText);
-        showToast('语音处理失败', 'error');
+        let userMsg = '语音处理失败';
+        try {
+          const j = JSON.parse(errorText) as { message?: string; error?: string };
+          if (j.message) userMsg = j.message;
+          else if (j.error) userMsg = j.error;
+        } catch {
+          if (apiResponse.status === 503 && errorText) userMsg = '语音识别服务暂不可用';
+        }
+        showToast(userMsg, 'error');
         return;
       }
 

@@ -29,7 +29,17 @@ const zhCN = {
     "family": "家庭",
     "add": "新增",
     "moments": "瞬间",
-    "profile": "我的"
+    "profile": "我的",
+    "addVoiceLongPressHint": "长按可语音说出指令，例如「我要增加一个记忆」",
+    "voiceCommandTitle": "语音指令",
+    "voiceCommandSubtitle": "说出想去的位置，例如「我要增加一个记忆」「打开瞬间」",
+    "voiceCommandUnknown": "未识别指令。可尝试：增加记忆、Vlog、瞬间、家庭、首页、我的",
+    "voiceOpenAddMemory": "正在打开新增回忆",
+    "voiceOpenVlog": "正在打开 Vlog",
+    "voiceOpenMoments": "正在打开瞬间",
+    "voiceOpenFamily": "正在打开家庭",
+    "voiceOpenHome": "正在返回首页",
+    "voiceOpenProfile": "正在打开我的"
   },
   "profile": {
     "title": "我的",
@@ -362,7 +372,17 @@ const en = {
     "family": "Family",
     "add": "Add",
     "moments": "Moments",
-    "profile": "Profile"
+    "profile": "Profile",
+    "addVoiceLongPressHint": "Long-press for voice commands, e.g. “Add a memory”",
+    "voiceCommandTitle": "Voice command",
+    "voiceCommandSubtitle": "Say where to go, e.g. “Add a memory” or “Open moments”",
+    "voiceCommandUnknown": "Command not recognized. Try: add a memory, Vlog, moments, family, home, profile",
+    "voiceOpenAddMemory": "Opening add memory",
+    "voiceOpenVlog": "Opening Vlog",
+    "voiceOpenMoments": "Opening moments",
+    "voiceOpenFamily": "Opening family",
+    "voiceOpenHome": "Going to home",
+    "voiceOpenProfile": "Opening profile"
   },
   "profile": {
     "title": "Profile",
@@ -695,7 +715,17 @@ const hi = {
     "family": "परिवार",
     "add": "जोड़ें",
     "moments": "पल",
-    "profile": "प्रोफ़ाइल"
+    "profile": "प्रोफ़ाइल",
+    "addVoiceLongPressHint": "देर तक दबाकर आवाज़ से कहें, जैसे “मुझे एक याद जोड़नी है”",
+    "voiceCommandTitle": "आवाज़ निर्देश",
+    "voiceCommandSubtitle": "कहें कहाँ जाना है, जैसे “नई याद जोड़ें” या “पल खोलें”",
+    "voiceCommandUnknown": "आदेश समझ नहीं आया। आज़माएं: नई याद, Vlog, पल, परिवार, होम, प्रोफ़ाइल",
+    "voiceOpenAddMemory": "नई याद खोल रहे हैं",
+    "voiceOpenVlog": "Vlog खोल रहे हैं",
+    "voiceOpenMoments": "पल खोल रहे हैं",
+    "voiceOpenFamily": "परिवार खोल रहे हैं",
+    "voiceOpenHome": "होम पर जा रहे हैं",
+    "voiceOpenProfile": "प्रोफ़ाइल खोल रहे हैं"
   },
   "profile": {
     "title": "प्रोफ़ाइल",

@@ -1,8 +1,67 @@
 import { Router } from 'express';
 import { LLMClient, Config, ASRClient } from 'coze-coding-dev-sdk';
 
+/** 与 coze-coding-dev-sdk README 一致；需由 `server/src/load-env.ts` 在路由模块加载前注入 process.env */
+function createCozeConfigFromEnv(): Config {
+  const baseUrl = (process.env.COZE_INTEGRATION_BASE_URL || '').trim();
+  const modelBaseUrl = (
+    process.env.COZE_INTEGRATION_MODEL_BASE_URL ||
+    process.env.COZE_INTEGRATION_BASE_URL ||
+    ''
+  ).trim();
+  return new Config({
+    apiKey: (process.env.COZE_WORKLOAD_IDENTITY_API_KEY || '').trim(),
+    baseUrl,
+    modelBaseUrl,
+  });
+}
+
+function cozeAsrEnvReady(): { ok: true } | { ok: false; message: string } {
+  const apiKey = (process.env.COZE_WORKLOAD_IDENTITY_API_KEY || '').trim();
+  const baseUrl = (process.env.COZE_INTEGRATION_BASE_URL || '').trim();
+  const modelBaseUrl = (
+    process.env.COZE_INTEGRATION_MODEL_BASE_URL ||
+    process.env.COZE_INTEGRATION_BASE_URL ||
+    ''
+  ).trim();
+  if (!apiKey) {
+    return {
+      ok: false,
+      message:
+        '未配置 COZE_WORKLOAD_IDENTITY_API_KEY。请在 .env 或部署环境中设置（与 coze-coding-dev-sdk 文档一致）。',
+    };
+  }
+  if (!baseUrl) {
+    return {
+      ok: false,
+      message:
+        '未配置 COZE_INTEGRATION_BASE_URL。ASR 需要有效的集成网关地址（例如 https://api.coze.com）。',
+    };
+  }
+  try {
+    new URL(baseUrl);
+    if (modelBaseUrl) new URL(modelBaseUrl);
+  } catch {
+    return {
+      ok: false,
+      message: 'COZE_INTEGRATION_BASE_URL 或 COZE_INTEGRATION_MODEL_BASE_URL 不是合法 URL。',
+    };
+  }
+  return { ok: true };
+}
+
+function isAsrEndpointOrConfigError(err: unknown): boolean {
+  const msg =
+    err instanceof Error
+      ? `${err.message} ${err.cause instanceof Error ? err.cause.message : ''}`
+      : String(err);
+  return /invalid url|invalid\s+url|asr.*url|missing.*url|ENOTFOUND|ECONNREFUSED|fetch failed|api key is required/i.test(
+    msg
+  );
+}
+
 const router = Router();
-const llmConfig = new Config();
+const llmConfig = createCozeConfigFromEnv();
 const llmClient = new LLMClient(llmConfig);
 const asrClient = new ASRClient(llmConfig);
 
@@ -24,6 +83,15 @@ router.post('/transcribe', async (req, res) => {
       base64Length: audio.length,
     });
 
+    const asrReady = cozeAsrEnvReady();
+    if (!asrReady.ok) {
+      console.warn('ASR 环境未就绪:', asrReady.message);
+      return res.status(503).json({
+        error: '语音识别服务未配置',
+        message: asrReady.message,
+      });
+    }
+
     // 调用 ASR 进行语音识别
     console.log('调用 ASR 语音识别...');
     const asrResult = await asrClient.recognize({
@@ -44,7 +112,14 @@ router.post('/transcribe', async (req, res) => {
     console.error('语音识别失败:', error);
     console.error('错误详情:', error.message);
 
-    // ASR 失败时不返回兜底文案，直接返回错误
+    if (isAsrEndpointOrConfigError(error)) {
+      return res.status(503).json({
+        error: '语音识别服务未配置',
+        message:
+          'ASR 服务端点无效或未配置。请在运行环境中配置 Coze / ASR 所需的环境变量，或联系管理员。',
+      });
+    }
+
     res.status(500).json({
       error: '语音识别失败',
       message: error.message || 'ASR 服务异常',
@@ -138,6 +213,15 @@ router.post('/transcribe-and-extract', async (req, res) => {
       base64Length: audio.length,
     });
 
+    const asrReady = cozeAsrEnvReady();
+    if (!asrReady.ok) {
+      console.warn('ASR 环境未就绪:', asrReady.message);
+      return res.status(503).json({
+        error: '语音识别服务未配置',
+        message: asrReady.message,
+      });
+    }
+
     // 步骤1：语音识别
     console.log('步骤1：开始语音识别...');
 
@@ -212,6 +296,15 @@ router.post('/transcribe-and-extract', async (req, res) => {
 
   } catch (error: any) {
     console.error('语音处理失败:', error);
+
+    if (isAsrEndpointOrConfigError(error)) {
+      return res.status(503).json({
+        error: '语音识别服务未配置',
+        message:
+          'ASR 服务端点无效或未配置。请在运行环境中配置 Coze / ASR 所需的环境变量，或联系管理员。',
+      });
+    }
+
     res.status(500).json({ error: '语音处理失败，请稍后重试' });
   }
 });
