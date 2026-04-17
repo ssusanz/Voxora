@@ -6,7 +6,7 @@ import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { Video, ResizeMode } from 'expo-video';
 import { useToast } from '@/hooks/useToast';
 
 // 回忆数据接口
@@ -61,11 +61,6 @@ export default function VlogScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [videoStatus, setVideoStatus] = useState<AVPlaybackStatus | null>(null);
-
-  const handleVideoPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    setVideoStatus(status);
-  };
 
   const toggleMemorySelection = useCallback((memory: Memory) => {
     setSelectedMemories(prev => {
@@ -276,13 +271,7 @@ export default function VlogScreen() {
                   style={styles.video}
                   useNativeControls
                   resizeMode={ResizeMode.CONTAIN}
-                  onPlaybackStatusUpdate={handleVideoPlaybackStatusUpdate}
                 />
-                {videoStatus && videoStatus.isLoaded && (
-                  <Text style={styles.videoDuration}>
-                    {t('vlog.generating')}: {videoStatus.durationMillis ? `${Math.round(videoStatus.durationMillis / 1000)}${t('common.seconds') || '秒'}` : t('common.loading')}
-                  </Text>
-                )}
               </View>
             ) : (
               <ActivityIndicator size="large" color="#7C6AFF" />
