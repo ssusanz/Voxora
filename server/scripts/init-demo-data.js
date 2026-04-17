@@ -4,7 +4,9 @@
  * 用法：node scripts/init-demo-data.js
  *
  * 环境变量：
- *   DATABASE_URL - PostgreSQL 数据库连接字符串
+ *   DATABASE_URL - PostgreSQL 数据库连接字符串（可选）
+ *   POSTGRES_URL - PostgreSQL 数据库连接字符串（可选）
+ *   COZE_SUPABASE_URL - Supabase 项目 URL（会自动提取数据库连接）
  */
 
 import fs from 'fs';
@@ -16,12 +18,50 @@ const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 从环境变量或默认值读取数据库配置
-const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+// 尝试从多种来源获取数据库连接字符串
+let databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+
+// 如果没有直接提供，尝试从 COZE_SUPABASE_URL 提取
+if (!databaseUrl && process.env.COZE_SUPABASE_URL) {
+  try {
+    // COZE_SUPABASE_URL 格式: https://xxx.supabase.co
+    const supabaseUrl = process.env.COZE_SUPABASE_URL;
+    const projectId = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+
+    if (projectId) {
+      // Supabase 默认连接字符串格式
+      // 注意：需要设置数据库密码作为环境变量
+      const dbPassword = process.env.SUPABASE_DB_PASSWORD || process.env.POSTGRES_PASSWORD;
+
+      if (dbPassword) {
+        databaseUrl = `postgresql://postgres:${encodeURIComponent(dbPassword)}@db.${projectId}.supabase.co:5432/postgres`;
+        console.log('✅ 从 COZE_SUPABASE_URL 提取数据库连接字符串');
+      } else {
+        console.warn('⚠️  检测到 COZE_SUPABASE_URL 但缺少 SUPABASE_DB_PASSWORD 或 POSTGRES_PASSWORD');
+        console.warn('⚠️  请设置数据库密码环境变量，或直接设置 DATABASE_URL');
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️  无法从 COZE_SUPABASE_URL 提取数据库连接:', error.message);
+  }
+}
 
 if (!databaseUrl) {
   console.error('❌ 错误：未找到数据库连接字符串');
-  console.error('请设置环境变量 DATABASE_URL 或 POSTGRES_URL');
+  console.error('');
+  console.error('请设置以下环境变量之一：');
+  console.error('  1. DATABASE_URL - PostgreSQL 连接字符串（推荐）');
+  console.error('  2. POSTGRES_URL - 同上（某些平台使用此名称）');
+  console.error('');
+  console.error('或者使用 Supabase 环境：');
+  console.error('  3. COZE_SUPABASE_URL + SUPABASE_DB_PASSWORD');
+  console.error('');
+  console.error('示例：');
+  console.error('  export DATABASE_URL="postgresql://postgres:[password]@db.xxx.supabase.co:5432/postgres"');
+  console.error('  node scripts/init-demo-data.js');
+  console.error('');
+  console.error('💡 提示：更简单的方法是直接在 Supabase SQL Editor 中运行 demo-data.sql');
+  console.error('   查看 server/DEMO_DATA_README.md 了解更多方法');
   process.exit(1);
 }
 
