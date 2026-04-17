@@ -67,7 +67,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           "microphonePermission": `Voxora 家庭回忆录App需要访问麦克风以录制视频声音。`,
           "recordAudioAndroid": true
         }
-      ]
+      ],
+      "expo-video",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true

@@ -17,7 +17,11 @@ const zhCN = {
     "retry": "重试",
     "success": "成功",
     "member": "家人",
-    "untitled": "无标题"
+    "untitled": "无标题",
+    "noImages": "没有图片",
+    "previous": "上一张",
+    "next": "下一张",
+    "seconds": "秒"
   },
   "tab": {
     "home": "首页",
@@ -275,7 +279,11 @@ const en = {
     "retry": "Retry",
     "success": "Success",
     "member": "Family",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "noImages": "No Images",
+    "previous": "Previous",
+    "next": "Next",
+    "seconds": "seconds"
   },
   "tab": {
     "home": "Home",
@@ -533,7 +541,11 @@ const hi = {
     "retry": "पुनः प्रयास करें",
     "success": "सफल",
     "member": "परिवार",
-    "untitled": "बिना शीर्षक"
+    "untitled": "बिना शीर्षक",
+    "noImages": "कोई तस्वीर नहीं",
+    "previous": "पिछला",
+    "next": "अगला",
+    "seconds": "सेकंड"
   },
   "tab": {
     "home": "होम",

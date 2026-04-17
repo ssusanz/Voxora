@@ -44,6 +44,11 @@ export default function RootLayout() {
           animation: 'slide_from_bottom',
           presentation: 'modal'
         }} />
+        <Stack.Screen name="photo-viewer" options={{
+          title: "图片查看器",
+          animation: 'fade',
+          presentation: 'card'
+        }} />
       </Stack>
       <Toast />
     </Provider>
