@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 
@@ -45,13 +45,13 @@ export default function Whiteboard({
         </View>
         {isEditable && (
           <View style={styles.actions}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={() => setIsAdding(true)}
             >
               <Ionicons name="text" size={18} color="#7C6AFF" />
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={onAddDoodle}
             >
@@ -60,8 +60,8 @@ export default function Whiteboard({
           </View>
         )}
       </View>
-      
-      {/* 内容区 */}
+
+      {/* 内容区 - 使用 ScrollView 避免布局测量错误 */}
       <View style={styles.content}>
         {items.length === 0 && !isAdding ? (
           <View style={styles.emptyState}>
@@ -70,39 +70,12 @@ export default function Whiteboard({
             <Text style={styles.emptyHint}>点击上方图标添加</Text>
           </View>
         ) : (
-          <View style={styles.itemsContainer}>
-            {/* 添加输入框 */}
-            {isAdding && (
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="写下家庭目标..."
-                  placeholderTextColor="#999"
-                  value={newText}
-                  onChangeText={setNewText}
-                  multiline
-                  autoFocus
-                />
-                <View style={styles.inputActions}>
-                  <TouchableOpacity 
-                    style={styles.cancelButton}
-                    onPress={() => {
-                      setIsAdding(false);
-                      setNewText('');
-                    }}
-                  >
-                    <Ionicons name="close" size={18} color="#999" />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.submitButton}
-                    onPress={handleSubmit}
-                  >
-                    <Ionicons name="checkmark" size={18} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-            
+          <ScrollView
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             {/* 现有条目 */}
             {items.map((item) => (
               <View key={item.id} style={styles.item}>
@@ -121,7 +94,42 @@ export default function Whiteboard({
                 </View>
               </View>
             ))}
-          </View>
+
+            {/* 添加输入框 - 放在列表底部，避免固定高度导致的布局问题 */}
+            {isAdding && (
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="写下家庭目标..."
+                  placeholderTextColor="#999"
+                  value={newText}
+                  onChangeText={setNewText}
+                  multiline
+                  autoFocus
+                  returnKeyType="done"
+                  blurOnSubmit={false}
+                  onSubmitEditing={handleSubmit}
+                />
+                <View style={styles.inputActions}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => {
+                      setIsAdding(false);
+                      setNewText('');
+                    }}
+                  >
+                    <Ionicons name="close" size={18} color="#999" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.submitButton}
+                    onPress={handleSubmit}
+                  >
+                    <Ionicons name="checkmark" size={18} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </ScrollView>
         )}
       </View>
     </View>
@@ -183,7 +191,6 @@ const styles = StyleSheet.create({
   },
   content: {
     minHeight: 120,
-    maxHeight: 200,
     padding: 16,
   },
   emptyState: {
@@ -202,19 +209,24 @@ const styles = StyleSheet.create({
     color: '#E0E0E0',
     marginTop: 4,
   },
-  itemsContainer: {
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
     gap: 10,
+    paddingBottom: 8,
   },
   inputContainer: {
     backgroundColor: '#F5F5F5',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 10,
+    marginTop: 4,
   },
   textInput: {
     fontSize: 14,
     color: '#333',
     minHeight: 40,
+    maxHeight: 100,
     textAlignVertical: 'top',
   },
   inputActions: {
