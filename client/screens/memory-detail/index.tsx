@@ -27,6 +27,8 @@ import GlowingCluster from '@/components/GlowingCluster';
 import VoiceInput from '@/components/VoiceInput';
 import { useToast } from '@/hooks/useToast';
 import { getBackendBaseUrl } from '@/utils/backend';
+import { formatDateLocalized } from '@/utils/localeFormat';
+import { useMemoryDisplayText } from '@/hooks/useMemoryDisplayText';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -154,10 +156,11 @@ export default function MemoryDetailScreen() {
   const router = useSafeRouter();
   const params = useSafeSearchParams<{ memoryId: string }>();
   const { showSuccess, showError, showInfo } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // 真实数据状态
   const [realMemory, setRealMemory] = useState<{
+    id: string;
     title: string;
     coverImage: string;
     date: string;
@@ -182,6 +185,11 @@ export default function MemoryDetailScreen() {
   const [showMemberSelector, setShowMemberSelector] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false); // 更多菜单
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null); // Toast 提示
+
+  const { title: memoryTitleDisplay, location: memoryLocationDisplay } = useMemoryDisplayText({
+    title: realMemory?.title ?? memory.title ?? '',
+    location: realMemory?.location ?? '',
+  });
 
   // 显示 Toast
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -220,9 +228,12 @@ export default function MemoryDetailScreen() {
         const listData = await listRes.json();
         if (listData.data && listData.data.length > 0) {
           const firstMemory = listData.data[0];
-          const dateStr = firstMemory.date ? formatDate(firstMemory.date) : '';
+          const dateStr = firstMemory.date
+            ? formatDateLocalized(firstMemory.date, i18n.language, 'dateOnly')
+            : '';
           setRealMemory({
-            title: firstMemory.title || t('memoryDetail.noTitle'),
+            id: String(firstMemory.id ?? ''),
+            title: firstMemory.title || '',
             coverImage: firstMemory.cover_image || '',
             date: dateStr,
             location: firstMemory.location || '',
@@ -247,9 +258,10 @@ export default function MemoryDetailScreen() {
       const data = await response.json();
 
       if (data && !data.error) {
-        const dateStr = data.date ? formatDate(data.date) : '';
+        const dateStr = data.date ? formatDateLocalized(data.date, i18n.language, 'dateOnly') : '';
         setRealMemory({
-          title: data.title || t('memoryDetail.noTitle'),
+          id: String(data.id ?? id),
+          title: data.title || '',
           coverImage: data.cover_image || '',
           date: dateStr,
           location: data.location || '',
@@ -269,16 +281,7 @@ export default function MemoryDetailScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [params.memoryId]);
-
-  // 格式化日期
-  const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${year}年${month}月${day}日`;
-  };
+  }, [params.memoryId, t, i18n.language]);
 
   // 页面聚焦时获取数据（返回时自动刷新）
   useFocusEffect(
@@ -574,16 +577,18 @@ export default function MemoryDetailScreen() {
             
             {/* 标题叠加 - 使用真实数据 */}
             <View style={styles.titleOverlay}>
-              <Text style={styles.mainTitle}>{realMemory.title}</Text>
+              <Text style={styles.mainTitle}>{memoryTitleDisplay}</Text>
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
                   <Ionicons name="calendar" size={14} color="rgba(255,255,255,0.8)" />
                   <Text style={styles.metaText}>{realMemory.date}</Text>
                 </View>
+                {memoryLocationDisplay ? (
                 <View style={styles.metaItem}>
                   <Ionicons name="location" size={14} color="rgba(255,255,255,0.8)" />
-                  <Text style={styles.metaText}>{realMemory.location}</Text>
+                  <Text style={styles.metaText}>{memoryLocationDisplay}</Text>
                 </View>
+                ) : null}
               </View>
             </View>
             
@@ -625,7 +630,7 @@ export default function MemoryDetailScreen() {
               />
             </View>
             <Text style={[styles.snapshotTitle, { color: memory.emotionColor }]}>
-              {realMemory?.title || memory.title}
+              {memoryTitleDisplay}
             </Text>
             <Text style={styles.snapshotDate}>{realMemory?.date || memory.date}</Text>
           </Animated.View>

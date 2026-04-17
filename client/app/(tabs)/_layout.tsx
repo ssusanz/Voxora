@@ -7,6 +7,7 @@ import { View, StyleSheet, TouchableOpacity, Text, Modal } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 function TabBarIcon({ name, color, focused }: { name: keyof typeof Ionicons.glyphMap; color: string; focused: boolean }) {
   return (
@@ -23,6 +24,7 @@ type AddButtonProps = {
 
 // 将 AddButton 组件定义在 TabLayout 外部，避免每次渲染时重新创建
 function AddButton(props: AddButtonProps) {
+  const { t } = useTranslation();
   const router = useSafeRouter();
   const [showMenu, setShowMenu] = useState(false);
 
@@ -72,7 +74,7 @@ function AddButton(props: AddButtonProps) {
               <View style={[styles.menuIcon, { backgroundColor: 'rgba(124, 106, 255, 0.15)' }]}>
                 <Ionicons name="add-circle" size={24} color="#7C6AFF" />
               </View>
-              <Text style={styles.menuText}>新增回忆</Text>
+              <Text style={styles.menuText}>{t('addMemory.fabLabel')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -82,14 +84,14 @@ function AddButton(props: AddButtonProps) {
               <View style={[styles.menuIcon, { backgroundColor: 'rgba(255, 123, 138, 0.15)' }]}>
                 <Ionicons name="videocam" size={24} color="#FF7B8A" />
               </View>
-              <Text style={styles.menuText}>Vlog</Text>
+              <Text style={styles.menuText}>{t('vlog.title')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.menuCloseButton}
               onPress={() => setShowMenu(false)}
             >
-              <Text style={styles.menuCloseText}>取消</Text>
+              <Text style={styles.menuCloseText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -99,6 +101,7 @@ function AddButton(props: AddButtonProps) {
 }
 
 export default function TabLayout() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [background, muted, accent] = useCSSVariable([
     '--color-background',
@@ -144,7 +147,8 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: '首页',
+            title: t('tab.home'),
+            tabBarLabel: t('tab.home'),
             tabBarIcon: ({ color, focused }) => (
               <TabBarIcon name="home" color={color} focused={focused} />
             ),
@@ -153,7 +157,8 @@ export default function TabLayout() {
         <Tabs.Screen
           name="family"
           options={{
-            title: '家庭',
+            title: t('tab.family'),
+            tabBarLabel: t('tab.family'),
             tabBarIcon: ({ color, focused }) => (
               <TabBarIcon name="people" color={color} focused={focused} />
             ),
@@ -168,7 +173,8 @@ export default function TabLayout() {
         <Tabs.Screen
           name="moments"
           options={{
-            title: '瞬间',
+            title: t('tab.moments'),
+            tabBarLabel: t('tab.moments'),
             tabBarIcon: ({ color, focused }) => (
               <TabBarIcon name="images" color={color} focused={focused} />
             ),
@@ -177,7 +183,8 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
-            title: '我的',
+            title: t('tab.profile'),
+            tabBarLabel: t('tab.profile'),
             tabBarIcon: ({ color, focused }) => (
               <TabBarIcon name="person" color={color} focused={focused} />
             ),

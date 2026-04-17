@@ -8,6 +8,8 @@ import { Video, ResizeMode } from 'expo-av';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from 'react-i18next';
 import { getBackendBaseUrl } from '@/utils/backend';
+import { formatDateLocalized } from '@/utils/localeFormat';
+import { useMemoryDisplayText } from '@/hooks/useMemoryDisplayText';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -236,22 +238,21 @@ function PhotoViewer({
   initialIndex,
   onClose,
   onAwakenSuccess,
-  t
 }: { 
   visible: boolean;
   photos: PhotoItem[];
   initialIndex: number;
   onClose: () => void;
   onAwakenSuccess?: () => void;
-  t: (key: string) => string;
 }) {
+  const { t, i18n } = useTranslation();
   const { showSuccess, showError, showInfo } = useToast();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isAwakening, setIsAwakening] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const safePhotos = photos ?? [];
 
-  // TODO(video-generation): 接入真实的视频生成服务（替换当前 demo 禁用逻辑）
+  // NOTE(video-generation): 接入真实的视频生成服务（替换当前 demo 禁用逻辑）
   // 当前工程已脱离 Coze 上游：后端 `/api/v1/video/awaken` 在未配置视频生成端点时会返回 501。
   // 为避免用户误以为“唤醒失败是图片 URL 问题”，这里默认禁用入口（方案 A）。
   const AWAKEN_VIDEO_ENABLED = false;
@@ -371,6 +372,14 @@ function PhotoViewer({
     void handleAwaken();
   }, [AWAKEN_VIDEO_ENABLED, handleAwaken, showInfo, t]);
 
+  const boundedPhotoIndex =
+    safePhotos.length > 0 ? Math.min(Math.max(0, currentIndex), safePhotos.length - 1) : 0;
+  const photoForViewerTitle = safePhotos.length > 0 ? safePhotos[boundedPhotoIndex] : undefined;
+  const { title: viewerMemoryTitle } = useMemoryDisplayText({
+    title: photoForViewerTitle?.memoryTitle ?? '',
+    location: '',
+  });
+
   if (!safePhotos || safePhotos.length === 0) return null;
 
   const currentPhoto = safePhotos[currentIndex];
@@ -406,6 +415,7 @@ function PhotoViewer({
         <FlatList
           ref={flatListRef}
           data={safePhotos}
+          extraData={i18n.language}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           horizontal
@@ -425,7 +435,7 @@ function PhotoViewer({
         
         {/* 照片信息 */}
         <View style={styles.viewerInfo}>
-          <Text style={styles.viewerTitle}>{currentPhoto?.memoryTitle || t('moments.title')}</Text>
+          <Text style={styles.viewerTitle}>{viewerMemoryTitle}</Text>
           <Text style={styles.viewerDate}>{currentPhoto?.date}</Text>
           {/* 页码指示器 */}
           {safePhotos.length > 1 && (
@@ -486,7 +496,7 @@ function PhotoViewer({
 }
 
 export default function MomentsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [memories, setMemories] = useState<MemoryWithPhotos[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMemory, setSelectedMemory] = useState<MemoryWithPhotos | null>(null);
@@ -545,8 +555,8 @@ export default function MomentsScreen() {
                   id: `${memory.id}-${idx}`,
                   url: img,
                   memoryId: memory.id,
-                  memoryTitle: memory.title || t('moments.title'),
-                  date: formatDate(memory.date || memory.created_at),
+                  memoryTitle: memory.title || '',
+                  date: formatDateLocalized(memory.date || memory.created_at, i18n.language, 'shortMd'),
                   aspectRatio,
                   index: idx,
                   mediaType,
@@ -558,8 +568,8 @@ export default function MomentsScreen() {
             if (photos.length > 0) {
               memoriesMap.set(memory.id, {
                 id: memory.id,
-                title: memory.title || t('moments.title'),
-                date: formatDate(memory.date || memory.created_at),
+                title: memory.title || '',
+                date: formatDateLocalized(memory.date || memory.created_at, i18n.language, 'shortMd'),
                 photos,
               });
             }
@@ -573,16 +583,7 @@ export default function MomentsScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
-
-  // 格式化日期
-  const formatDate = (dateStr: string): string => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${month}.${day}`;
-  };
+  }, [t, i18n.language]);
 
   // 页面聚焦时刷新数据
   useFocusEffect(
@@ -701,7 +702,6 @@ export default function MomentsScreen() {
         initialIndex={selectedPhotoIndex}
         onClose={() => setShowViewer(false)}
         onAwakenSuccess={fetchPhotos}
-        t={t}
       />
     </Screen>
   );

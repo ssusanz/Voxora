@@ -32,12 +32,17 @@ config.resolver.blockList = [
   /.*node_modules\/\.pnpm\/.*_tmp_\d+.*/,
 ];
 
-const BACKEND_TARGET = 'http://localhost:9091';
+function stripTrailingSlash(url) {
+  return url.replace(/\/$/, '');
+}
+const BACKEND_TARGET = stripTrailingSlash(
+  (process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091').trim()
+);
 
 const apiProxy = createProxyMiddleware({
   target: BACKEND_TARGET,
   changeOrigin: true,
-  logLevel: 'debug',
+  logLevel: 'warn',
   proxyTimeout: 86400000,
   onProxyReq: (proxyReq, req) => {
     const accept = req.headers.accept || '';
@@ -61,7 +66,7 @@ const apiProxy = createProxyMiddleware({
 const streamProxy = createProxyMiddleware({
   target: BACKEND_TARGET,
   changeOrigin: true,
-  logLevel: 'debug',
+  logLevel: 'warn',
   ws: true,
   proxyTimeout: 86400000,
   onProxyReq: (proxyReq, req) => {

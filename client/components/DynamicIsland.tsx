@@ -10,6 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '@/utils/localeFormat';
 
 interface Alert {
   id: string;
@@ -17,6 +19,12 @@ interface Alert {
   title: string;
   message: string;
   memberName?: string;
+  /** 若设置，则首行用 t(memberKey) 替代 memberName（演示/固定角色名多语言） */
+  memberKey?: string;
+  /** 若设置，则用 t(titleKey) 作为无成员名时的首行文案 */
+  titleKey?: string;
+  /** 若设置，则次行用 t(messageKey) 替代 message */
+  messageKey?: string;
   intensity?: 'low' | 'medium' | 'high';
   timestamp: Date;
 }
@@ -58,8 +66,23 @@ export default function DynamicIsland({
   mood = 'happy',
   onAlertPress 
 }: DynamicIslandProps) {
+  const { t } = useTranslation();
   // 直接派生当前提醒，不需要 setState
   const currentAlert = alerts.length > 0 ? alerts[0] : null;
+
+  const alertTitleLine =
+    currentAlert?.memberKey != null && currentAlert.memberKey !== ''
+      ? String(t(currentAlert.memberKey))
+      : currentAlert?.memberName
+        ? currentAlert.memberName
+        : currentAlert?.titleKey != null && currentAlert.titleKey !== ''
+          ? String(t(currentAlert.titleKey))
+          : currentAlert?.title ?? '';
+
+  const alertMessageLine =
+    currentAlert?.messageKey != null && currentAlert.messageKey !== ''
+      ? String(t(currentAlert.messageKey))
+      : currentAlert?.message ?? '';
   
   // 脉冲动画
   const pulseScale = useSharedValue(1);
@@ -159,10 +182,10 @@ export default function DynamicIsland({
               </View>
               <View style={styles.alertText}>
                 <Text style={styles.alertTitle} numberOfLines={1}>
-                  {currentAlert.memberName ? `${currentAlert.memberName}` : currentAlert.title}
+                  {alertTitleLine}
                 </Text>
                 <Text style={styles.alertMessage} numberOfLines={1}>
-                  {currentAlert.message}
+                  {alertMessageLine}
                 </Text>
               </View>
             </>
@@ -186,23 +209,11 @@ export default function DynamicIsland({
       {/* 底部时间戳 */}
       {currentAlert && (
         <Text style={styles.timestamp}>
-          {formatTime(currentAlert.timestamp)}
+          {formatRelativeTime(currentAlert.timestamp, t)}
         </Text>
       )}
     </Animated.View>
   );
-}
-
-// 格式化时间
-function formatTime(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}小时前`;
-  return `${Math.floor(hours / 24)}天前`;
 }
 
 const styles = StyleSheet.create({

@@ -14,6 +14,8 @@ import GlowingCluster from '@/components/GlowingCluster';
 import EmotionPicker, { EmotionType } from '@/components/EmotionPicker';
 import PetOverlay from '@/components/PetOverlay';
 import { getBackendBaseUrl } from '@/utils/backend';
+import { formatDateLocalized } from '@/utils/localeFormat';
+import { useMemoryDisplayText } from '@/hooks/useMemoryDisplayText';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -42,6 +44,9 @@ interface Alert {
   title: string;
   message: string;
   memberName?: string;
+  memberKey?: string;
+  titleKey?: string;
+  messageKey?: string;
   intensity?: 'low' | 'medium' | 'high';
   timestamp: Date;
 }
@@ -104,7 +109,8 @@ const mockAlerts: Alert[] = [
     type: 'heartRate',
     title: '情绪波动提醒',
     message: '检测到心率变化',
-    memberName: '奶奶',
+    memberKey: 'home.demoMembers.grandma',
+    messageKey: 'home.heartRateChange',
     intensity: 'medium',
     timestamp: new Date(Date.now() - 5 * 60000),
   },
@@ -134,7 +140,7 @@ const EMOTION_COLORS: Record<string, string> = {
 };
 
 export default function HomeScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useSafeRouter();
   const [memories, setMemories] = useState<MemoryNode[]>([]);
@@ -159,9 +165,11 @@ export default function HomeScreen() {
         // 转换后端数据格式为前端格式
         const mappedMemories: MemoryNode[] = result.data.map((item: any) => ({
           id: item.id,
-          title: item.title || t('common.untitled'),
+          title: item.title || '',
           coverImage: item.cover_image || '',
-          date: item.created_at ? formatDate(item.created_at) : '', // 使用创建时间
+          date: item.created_at
+            ? formatDateLocalized(item.created_at, i18n.language, 'long')
+            : '',
           location: item.location || '',
           isMultiUser: item.is_multi_user || false,
           userCount: item.user_count || 1,
@@ -180,19 +188,7 @@ export default function HomeScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  // 格式化日期（包含时分秒）
-  const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
-    return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
-  };
+  }, [t, i18n.language]);
 
   // 页面聚焦时刷新数据
   useFocusEffect(
@@ -275,7 +271,7 @@ export default function HomeScreen() {
     const color = item.emotion ? EMOTION_COLORS[item.emotion] : '#7C6AFF';
     const icon = item.emotion ? EMOTION_ICONS[item.emotion] : 'heart';
 
-    const title = String(item.title || '');
+    const { title } = useMemoryDisplayText(item);
     const date = String(item.date || '');
     const emotionCount = String(item.emotionCount || '');
     const quickMoodText = String(t('common.quickMood'));
@@ -317,9 +313,8 @@ export default function HomeScreen() {
 
   // 渲染图片记忆节点
   function ImageNode({ item }: { item: MemoryNode }) {
-    const title = String(item.title || '');
+    const { title, location } = useMemoryDisplayText(item);
     const date = String(item.date || '');
-    const location = String(item.location || '');
 
     return (
       <Animated.View entering={FadeInDown.springify()}>
@@ -363,10 +358,12 @@ export default function HomeScreen() {
                 <Ionicons name="calendar" size={12} color="#999" />
                 <Text style={styles.metaText}>{date}</Text>
               </View>
+              {location ? (
               <View style={styles.metaItem}>
                 <Ionicons name="location" size={12} color="#999" />
                 <Text style={styles.metaText}>{location}</Text>
               </View>
+              ) : null}
             </View>
           </View>
         </TouchableOpacity>
@@ -439,6 +436,7 @@ export default function HomeScreen() {
       {/* 记忆流 */}
       <FlatList
         data={memories}
+        extraData={i18n.language}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}

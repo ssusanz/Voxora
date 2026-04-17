@@ -21,12 +21,14 @@ const zhCN = {
     "noImages": "没有图片",
     "previous": "上一张",
     "next": "下一张",
-    "seconds": "秒"
+    "seconds": "秒",
+    "photoViewer": "图片查看器"
   },
   "tab": {
     "home": "首页",
     "family": "家庭",
     "add": "新增",
+    "moments": "瞬间",
     "profile": "我的"
   },
   "profile": {
@@ -75,6 +77,9 @@ const zhCN = {
     "startRecording": "开始记录你的第一个回忆吧",
     "emotionAlert": "情绪波动提醒",
     "heartRateChange": "检测到心率变化",
+    "demoMembers": {
+      "grandma": "奶奶"
+    },
     "moments": "瞬间",
     "allMemories": "全部回忆",
     "hiddenMemories": "隐藏的回忆",
@@ -108,7 +113,13 @@ const zhCN = {
     "familyBond": "亲情纽带",
     "heartMoments": "心动时刻",
     "morningGreeting": "早安问候",
-    "eveningCheckin": "晚安签到"
+    "eveningCheckin": "晚安签到",
+    "whiteboardEmpty": "家庭共同目标",
+    "whiteboardEmptyHint": "点击上方图标添加",
+    "whiteboardPlaceholder": "写下家庭目标..."
+  },
+  "emotionMessage": {
+    "sendResponse": "送TA回应"
   },
   "moments": {
     "title": "瞬间",
@@ -122,8 +133,48 @@ const zhCN = {
     "awakening": "唤醒中...",
     "pleaseSelectMemory": "请选择一个回忆"
   },
+  "memoryDemo": {
+    "titles": {
+      "springFestivalGathering": "春节团聚",
+      "summerTrip": "暑假旅行",
+      "weekendPicnic": "周末野餐",
+      "birthdayParty": "生日派对",
+      "beachVacation": "海边度假",
+      "weddingAnniversary": "婚礼纪念日",
+      "camping": "露营体验",
+      "firstSwim": "第一次游泳",
+      "christmas": "圣诞节",
+      "zooDay": "动物园一日游",
+      "timeCapsule": "时光胶囊",
+      "familyDinner": "家庭聚餐",
+      "missingGrandpa": "想念爷爷",
+      "weekendOuting": "周末郊游",
+      "calmAfternoon": "平静的午后",
+      "emotionPulseAlert": "情绪波动提醒",
+      "babyFirstBirthday": "宝宝周岁",
+      "myMother": "我的妈妈",
+      "storyOfACat": "一只猫的故事"
+    },
+    "locations": {
+      "hometown": "老家",
+      "huangshan": "黄山",
+      "park": "公园",
+      "atHome": "家里",
+      "sanya": "三亚",
+      "restaurant": "餐厅",
+      "mountainForest": "山林",
+      "swimmingPool": "游泳馆",
+      "zoo": "动物园",
+      "beijingGrandma": "北京·外婆家",
+      "summerPalace": "颐和园",
+      "balcony": "阳台",
+      "study": "书房",
+      "shanghai": "上海"
+    }
+  },
   "addMemory": {
     "title": "记录此刻",
+    "fabLabel": "新增回忆",
     "editTitle": "编辑回忆",
     "uploadPhotos": "上传照片",
     "addPhotos": "添加照片或视频",
@@ -229,6 +280,11 @@ const zhCN = {
     "memoryDate": "回忆日期",
     "memoryLocation": "回忆地点"
   },
+  "pet": {
+    "title": "宠物能量",
+    "energyMeta": "来自 {{member}} · {{time}}",
+    "lastFed": "上次喂食 {{time}}"
+  },
   "nfc": {
     "title": "NFC 触碰",
     "scanTip": "将设备靠近 NFC 标签",
@@ -298,12 +354,14 @@ const en = {
     "noImages": "No Images",
     "previous": "Previous",
     "next": "Next",
-    "seconds": "seconds"
+    "seconds": "seconds",
+    "photoViewer": "Photo viewer"
   },
   "tab": {
     "home": "Home",
     "family": "Family",
     "add": "Add",
+    "moments": "Moments",
     "profile": "Profile"
   },
   "profile": {
@@ -352,6 +410,9 @@ const en = {
     "startRecording": "Start recording your first memory",
     "emotionAlert": "Emotion Alert",
     "heartRateChange": "Heart rate change detected",
+    "demoMembers": {
+      "grandma": "Grandma"
+    },
     "moments": "Moments",
     "allMemories": "All Memories",
     "hiddenMemories": "Hidden Memories",
@@ -385,7 +446,13 @@ const en = {
     "familyBond": "Family Bond",
     "heartMoments": "Heart Moments",
     "morningGreeting": "Morning Greeting",
-    "eveningCheckin": "Evening Check-in"
+    "eveningCheckin": "Evening Check-in",
+    "whiteboardEmpty": "Shared family goals",
+    "whiteboardEmptyHint": "Tap the icon above to add",
+    "whiteboardPlaceholder": "Write a family goal..."
+  },
+  "emotionMessage": {
+    "sendResponse": "Send a response"
   },
   "moments": {
     "title": "Moments",
@@ -399,8 +466,48 @@ const en = {
     "awakening": "Awakening...",
     "pleaseSelectMemory": "Please select a memory"
   },
+  "memoryDemo": {
+    "titles": {
+      "springFestivalGathering": "Spring Festival family reunion",
+      "summerTrip": "Summer vacation trip",
+      "weekendPicnic": "Weekend picnic",
+      "birthdayParty": "Birthday party",
+      "beachVacation": "Beach vacation",
+      "weddingAnniversary": "Wedding anniversary",
+      "camping": "Camping trip",
+      "firstSwim": "First swimming lesson",
+      "christmas": "Christmas",
+      "zooDay": "Day at the zoo",
+      "timeCapsule": "Time capsule",
+      "familyDinner": "Family dinner",
+      "missingGrandpa": "Missing Grandpa",
+      "weekendOuting": "Weekend outing",
+      "calmAfternoon": "A calm afternoon",
+      "emotionPulseAlert": "Emotion pulse alert",
+      "babyFirstBirthday": "Baby’s first birthday",
+      "myMother": "My Mother",
+      "storyOfACat": "A Story of a Cat"
+    },
+    "locations": {
+      "hometown": "Hometown",
+      "huangshan": "Mount Huangshan",
+      "park": "Park",
+      "atHome": "At home",
+      "sanya": "Sanya",
+      "restaurant": "Restaurant",
+      "mountainForest": "Mountain forest",
+      "swimmingPool": "Swimming pool",
+      "zoo": "Zoo",
+      "beijingGrandma": "Beijing · Grandma’s home",
+      "summerPalace": "Summer Palace",
+      "balcony": "Balcony",
+      "study": "Study",
+      "shanghai": "Shanghai"
+    }
+  },
   "addMemory": {
     "title": "Record Now",
+    "fabLabel": "Add memory",
     "editTitle": "Edit Memory",
     "uploadPhotos": "Upload Photos",
     "addPhotos": "Add photos or videos",
@@ -506,6 +613,11 @@ const en = {
     "memoryDate": "Memory Date",
     "memoryLocation": "Memory Location"
   },
+  "pet": {
+    "title": "Pet Energy",
+    "energyMeta": "From {{member}} · {{time}}",
+    "lastFed": "Last fed {{time}}"
+  },
   "nfc": {
     "title": "NFC Touch",
     "scanTip": "Bring device near NFC tag",
@@ -575,12 +687,14 @@ const hi = {
     "noImages": "कोई तस्वीर नहीं",
     "previous": "पिछला",
     "next": "अगला",
-    "seconds": "सेकंड"
+    "seconds": "सेकंड",
+    "photoViewer": "फोटो दर्शक"
   },
   "tab": {
     "home": "होम",
     "family": "परिवार",
     "add": "जोड़ें",
+    "moments": "पल",
     "profile": "प्रोफ़ाइल"
   },
   "profile": {
@@ -629,6 +743,9 @@ const hi = {
     "startRecording": "अपनी पहली याद रिकॉर्ड करना शुरू करें",
     "emotionAlert": "भावना अलर्ट",
     "heartRateChange": "हृदय गति में बदलाव का पता चला",
+    "demoMembers": {
+      "grandma": "दादी"
+    },
     "moments": "पल",
     "allMemories": "सभी यादें",
     "hiddenMemories": "छिपी हुई यादें",
@@ -662,7 +779,13 @@ const hi = {
     "familyBond": "परिवार बंधन",
     "heartMoments": "दिल के पल",
     "morningGreeting": "सुबह का अभिवादन",
-    "eveningCheckin": "शाम की चेक-इन"
+    "eveningCheckin": "शाम की चेक-इन",
+    "whiteboardEmpty": "परिवार के साझा लक्ष्य",
+    "whiteboardEmptyHint": "जोड़ने के लिए ऊपर आइकन पर टैप करें",
+    "whiteboardPlaceholder": "एक पारिवारिक लक्ष्य लिखें..."
+  },
+  "emotionMessage": {
+    "sendResponse": "जवाब भेजें"
   },
   "moments": {
     "title": "पल",
@@ -676,8 +799,48 @@ const hi = {
     "awakening": "जगा रहा है...",
     "pleaseSelectMemory": "कृपया एक याद चुनें"
   },
+  "memoryDemo": {
+    "titles": {
+      "springFestivalGathering": "वसंत उत्सव परिवार मिलन",
+      "summerTrip": "गर्मियों की छुट्टी यात्रा",
+      "weekendPicnic": "वीकेंड पिकनिक",
+      "birthdayParty": "जन्मदिन समारोह",
+      "beachVacation": "समुद्र तट छुट्टी",
+      "weddingAnniversary": "शादी की सालगिरह",
+      "camping": "कैम्पिंग अनुभव",
+      "firstSwim": "पहली बार तैराकी",
+      "christmas": "क्रिसमस",
+      "zooDay": "चिड़ियाघर की यात्रा",
+      "timeCapsule": "समय कैप्सूल",
+      "familyDinner": "पारिवारिक भोज",
+      "missingGrandpa": "दादाजी की याद",
+      "weekendOuting": "वीकेंड भ्रमण",
+      "calmAfternoon": "शांत दोपहर",
+      "emotionPulseAlert": "भावना चेतावनी",
+      "babyFirstBirthday": "शिशु का पहला जन्मदिन",
+      "myMother": "मेरी माँ",
+      "storyOfACat": "एक बिल्ली की कहानी"
+    },
+    "locations": {
+      "hometown": "गृहनगर",
+      "huangshan": "हुआंगशान पर्वत",
+      "park": "उद्यान",
+      "atHome": "घर पर",
+      "sanya": "सान्या",
+      "restaurant": "रेस्तरां",
+      "mountainForest": "पहाड़ी वन",
+      "swimmingPool": "तरणताल",
+      "zoo": "चिड़ियाघर",
+      "beijingGrandma": "बीजिंग · नानी का घर",
+      "summerPalace": "ग्रीष्मकालीन महल",
+      "balcony": "बालकनी",
+      "study": "अध्ययन कक्ष",
+      "shanghai": "शंघाई"
+    }
+  },
   "addMemory": {
     "title": "अभी रिकॉर्ड करें",
+    "fabLabel": "नई याद जोड़ें",
     "editTitle": "याद संपादित करें",
     "uploadPhotos": "फोटो अपलोड करें",
     "addPhotos": "फोटो या वीडियो जोड़ें",
@@ -783,6 +946,11 @@ const hi = {
     "memoryDate": "याद तिथि",
     "memoryLocation": "याद स्थान"
   },
+  "pet": {
+    "title": "पालतू ऊर्जा",
+    "energyMeta": "{{member}} · {{time}}",
+    "lastFed": "अंतिम बार खिलाया {{time}}"
+  },
   "nfc": {
     "title": "NFC टच",
     "scanTip": "डिवाइस को NFC टैग के पास लाएं",
@@ -838,34 +1006,6 @@ const hi = {
 // 语言存储键
 const LANGUAGE_KEY = '@voxora_language';
 
-// 初始化 i18n
-const initI18n = async () => {
-  // 尝试从 AsyncStorage 读取保存的语言
-  let savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
-
-  // 如果没有保存的语言，使用设备语言
-  if (!savedLanguage) {
-    const deviceLanguage = getLocales()[0]?.languageCode || 'zh';
-    // 映射设备语言到支持的语言
-    savedLanguage = mapDeviceLanguageToSupported(deviceLanguage);
-  }
-
-  await i18n.use(initReactI18next).init({
-    resources: {
-      'zh-CN': { translation: zhCN },
-      'en': { translation: en },
-      'hi': { translation: hi },
-    },
-    lng: savedLanguage,
-    fallbackLng: 'zh-CN',
-    interpolation: {
-      escapeValue: false,
-    },
-  });
-
-  return savedLanguage;
-};
-
 // 映射设备语言到支持的语言
 const mapDeviceLanguageToSupported = (deviceLanguage: string): string => {
   const langMap: Record<string, string> = {
@@ -876,15 +1016,68 @@ const mapDeviceLanguageToSupported = (deviceLanguage: string): string => {
   return langMap[deviceLanguage] || 'zh-CN';
 };
 
-// 切换语言
-const changeLanguage = async (language: string) => {
-  await i18n.changeLanguage(language);
-  await AsyncStorage.setItem(LANGUAGE_KEY, language);
+/** 将 AsyncStorage / 系统返回的变体（如 hi-IN、en_US）规范为资源表中的 zh-CN | en | hi */
+export function normalizeAppLanguage(lng: string | null | undefined): 'zh-CN' | 'en' | 'hi' {
+  const raw = (lng || 'zh-CN').trim().replace(/_/g, '-');
+  const lower = raw.toLowerCase();
+  if (lower === 'hi' || lower.startsWith('hi-')) return 'hi';
+  if (lower === 'en' || lower.startsWith('en-')) return 'en';
+  if (lower === 'zh' || lower.startsWith('zh-')) return 'zh-CN';
+  return 'zh-CN';
+}
+
+/** 同步初始化：避免 RootLayout 在 Provider 异步 init 前用到未就绪的 i18n；首屏后再按存储切换语言 */
+if (!i18n.isInitialized) {
+  void i18n.use(initReactI18next).init({
+    resources: {
+      'zh-CN': { translation: zhCN },
+      /** 部分系统/环境下语言码为 zh 而非 zh-CN，单独注册避免整页 t() 回退成 key */
+      zh: { translation: zhCN },
+      'en': { translation: en },
+      'hi': { translation: hi },
+    },
+    lng: 'zh-CN',
+    /** 不设 supportedLngs：严格列表曾导致仅中文失效（resolved 为 zh 等变体时不命中 zh-CN） */
+    /** 印地语缺键时先走英文，再回中文 */
+    fallbackLng: {
+      hi: ['en', 'zh-CN'],
+      en: ['zh-CN'],
+      default: ['zh-CN'],
+    },
+    interpolation: {
+      escapeValue: false,
+    },
+  });
+}
+
+// 从本机恢复语言（轻量，仅 changeLanguage）
+const initI18n = async () => {
+  let savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
+
+  if (!savedLanguage) {
+    const deviceLanguage = getLocales()[0]?.languageCode || 'zh';
+    savedLanguage = mapDeviceLanguageToSupported(deviceLanguage);
+  }
+
+  const lng = normalizeAppLanguage(savedLanguage);
+  const current = normalizeAppLanguage(i18n.language);
+  if (lng && current !== lng) {
+    await i18n.changeLanguage(lng);
+  }
+
+  return lng;
 };
 
-// 获取当前语言
+// 切换语言
+const changeLanguage = async (language: string) => {
+  const lng = normalizeAppLanguage(language);
+  await i18n.changeLanguage(lng);
+  await AsyncStorage.setItem(LANGUAGE_KEY, lng);
+};
+
+// 获取当前语言（与资源表一致，避免 UI 里 language 为 zh 而选项为 zh-CN 不对齐）
 const getCurrentLanguage = (): string => {
-  return i18n.language;
+  return normalizeAppLanguage(i18n.language);
 };
 
 // 导出

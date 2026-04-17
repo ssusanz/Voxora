@@ -9,6 +9,8 @@
     "install-missing": "node ./scripts/install-missing-deps.js",
     "lint": "tsc --noEmit; eslint ./ -f ./scripts/formatter.mjs --quiet",
     "start": "expo start --web --clear",
+    "start:mobile": "expo start",
+    "start:mobile:clean": "expo start --clear",
     "test": "jest --watchAll"
   },
   "jest": {

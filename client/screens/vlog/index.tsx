@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { useToast } from '@/hooks/useToast';
 import { getBackendBaseUrl } from '@/utils/backend';
+import { useMemoryDisplayText } from '@/hooks/useMemoryDisplayText';
 
 // 回忆数据接口
 interface Memory {
@@ -51,11 +52,73 @@ const mockMemories: Memory[] = [
   },
 ];
 
+function VlogMemoryListItem({
+  item,
+  selected,
+  onPress,
+}: {
+  item: Memory;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { title, location } = useMemoryDisplayText(item);
+  const metaLine = location ? `${item.date} · ${location}` : item.date;
+  return (
+    <TouchableOpacity
+      style={[styles.memoryItem, selected && styles.memoryItemSelected]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Image
+        source={{ uri: item.coverImage }}
+        style={styles.memoryImage}
+      />
+      <View style={styles.memoryInfo}>
+        <Text style={styles.memoryTitle}>{title}</Text>
+        <Text style={styles.memoryMeta}>{metaLine}</Text>
+      </View>
+      <View style={[styles.checkIcon, selected && styles.checkIconSelected]}>
+        {selected && <Ionicons name="checkmark" size={20} color="#FFF" />}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function VlogPreviewItem({
+  memory,
+  index,
+  onRemove,
+}: {
+  memory: Memory;
+  index: number;
+  onRemove: () => void;
+}) {
+  const { title } = useMemoryDisplayText(memory);
+  return (
+    <View style={styles.previewItem}>
+      <Text style={styles.previewIndex}>{index + 1}</Text>
+      <Image
+        source={{ uri: memory.coverImage }}
+        style={styles.previewImage}
+      />
+      <Text style={styles.previewItemTitle} numberOfLines={1}>
+        {title}
+      </Text>
+      <TouchableOpacity
+        style={styles.previewRemove}
+        onPress={onRemove}
+      >
+        <Ionicons name="close-circle" size={20} color="#999" />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function VlogScreen() {
   const insets = useSafeAreaInsets();
   const router = useSafeRouter();
   const { showSuccess, showError, showInfo } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [selectedMemories, setSelectedMemories] = useState<Memory[]>([]);
   const [vlogTitle, setVlogTitle] = useState('');
@@ -116,33 +179,10 @@ export default function VlogScreen() {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedMemories, vlogTitle]);
+  }, [selectedMemories, vlogTitle, t, showError, showInfo]);
 
   const isMemorySelected = (memoryId: string) => {
     return selectedMemories.some(m => m.id === memoryId);
-  };
-
-  const renderMemoryItem = ({ item }: { item: Memory }) => {
-    const selected = isMemorySelected(item.id);
-    return (
-      <TouchableOpacity
-        style={[styles.memoryItem, selected && styles.memoryItemSelected]}
-        onPress={() => toggleMemorySelection(item)}
-        activeOpacity={0.8}
-      >
-        <Image
-          source={{ uri: item.coverImage }}
-          style={styles.memoryImage}
-        />
-        <View style={styles.memoryInfo}>
-          <Text style={styles.memoryTitle}>{item.title}</Text>
-          <Text style={styles.memoryMeta}>{item.date} · {item.location}</Text>
-        </View>
-        <View style={[styles.checkIcon, selected && styles.checkIconSelected]}>
-          {selected && <Ionicons name="checkmark" size={20} color="#FFF" />}
-        </View>
-      </TouchableOpacity>
-    );
   };
 
   return (
@@ -195,7 +235,14 @@ export default function VlogScreen() {
 
           <FlatList
             data={mockMemories}
-            renderItem={renderMemoryItem}
+            extraData={i18n.language}
+            renderItem={({ item }) => (
+              <VlogMemoryListItem
+                item={item}
+                selected={isMemorySelected(item.id)}
+                onPress={() => toggleMemorySelection(item)}
+              />
+            )}
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
           />
@@ -232,22 +279,12 @@ export default function VlogScreen() {
             <Text style={styles.previewTitle}>{t('vlog.selectMemories')}</Text>
             <View style={styles.previewList}>
               {selectedMemories.map((memory, index) => (
-                <View key={memory.id} style={styles.previewItem}>
-                  <Text style={styles.previewIndex}>{index + 1}</Text>
-                  <Image
-                    source={{ uri: memory.coverImage }}
-                    style={styles.previewImage}
-                  />
-                  <Text style={styles.previewItemTitle} numberOfLines={1}>
-                    {memory.title}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.previewRemove}
-                    onPress={() => toggleMemorySelection(memory)}
-                  >
-                    <Ionicons name="close-circle" size={20} color="#999" />
-                  </TouchableOpacity>
-                </View>
+                <VlogPreviewItem
+                  key={memory.id}
+                  memory={memory}
+                  index={index}
+                  onRemove={() => toggleMemorySelection(memory)}
+                />
               ))}
             </View>
           </View>
