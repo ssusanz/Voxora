@@ -13,3 +13,8 @@ node-compile-cache/
 .pnpm-store/
 server/nohup.out
 .cursor/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
