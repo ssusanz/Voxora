@@ -170,7 +170,6 @@ export function MeetFuturePanel({ bottomSpacerHeight }: MeetFuturePanelProps) {
             style={styles.heroCard}
           >
             <Text style={styles.heroEmoji}>✨🧭🎈</Text>
-            <Text style={styles.heroTitle}>{t('home.futureHeroTitle')}</Text>
             <Text style={styles.heroLine}>{heroLines[heroPick % heroLines.length]}</Text>
             <View style={styles.heroChips}>
               <View style={styles.heroChip}>
@@ -410,15 +409,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  heroTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFF',
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
   heroLine: {
-    marginTop: 10,
+    marginTop: 4,
     fontSize: 14,
     lineHeight: 21,
     color: 'rgba(255,255,255,0.92)',

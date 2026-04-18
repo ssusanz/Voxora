@@ -111,7 +111,7 @@ const zhCN = {
     "shareSuccess": "已分享到家庭空间",
     "deleteMemoryMessage": "将删除这条回忆（含全部照片与心情记录），且不可恢复。",
     "corridorCardTitle": "时光长廊",
-    "corridorCardHint": "翻翻更温柔",
+    "corridorCardHint": "翻翻就醉人",
     "futureCardTitle": "遇见未来",
     "futureCardHint": "想想就激动",
     "futureMicroHint": "把日历上的空白，涂成「好期待」",
