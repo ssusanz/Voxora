@@ -14,7 +14,7 @@
 #   本脚本从仓库根 `.env` 读取该行，仅用于：**自检**、以及 **`eas build --local`** 同一会话可见。
 #
 # Bundle ID：
-#   默认 `com.anonymous.<slug>`（与 expo slug 一致，如 myapp → com.anonymous.myapp），写在 client/app.config.ts。
+#   默认 `com.susanshpd.voxora`（client/app.config.ts）；勿用 `com.anonymous.myapp` 等易被占用的 ID。
 #   覆盖：`export IOS_BUNDLE_IDENTIFIER=com.yourcompany.voxora` 后再执行本脚本。
 #
 # Apple 凭证：

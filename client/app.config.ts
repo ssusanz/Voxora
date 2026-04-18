@@ -12,12 +12,13 @@ const slugAppName = projectId ? `app${projectId}` : 'myapp';
 const EAS_DEFAULT_PROJECT_ID = 'fc6787d7-ab8c-4e35-b55f-dd49251d1192';
 
 /**
- * iOS Bundle ID（EAS `eas build -p ios` 必填）。须与 Apple Developer 中 App ID 一致或让 EAS 首次创建时选用。
- * 可用环境变量覆盖：`IOS_BUNDLE_IDENTIFIER=com.company.app`
+ * iOS Bundle ID（EAS `eas build -p ios` 必填）。须在你当前 Apple Team 下可注册（全球唯一）。
+ * `com.anonymous.*` 易被占用；默认改为与 Expo 账号一致的 reverse-DNS。
+ * 覆盖：`IOS_BUNDLE_IDENTIFIER=com.yourcompany.yourapp`
  */
 const iosBundleIdentifier =
   (typeof process.env.IOS_BUNDLE_IDENTIFIER === 'string' && process.env.IOS_BUNDLE_IDENTIFIER.trim()) ||
-  `com.anonymous.${slugAppName.replace(/[^a-zA-Z0-9]/g, '')}`;
+  'com.susanshpd.voxora';
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const baseExtra =
