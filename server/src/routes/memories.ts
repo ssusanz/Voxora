@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { getSupabaseClient } from '../storage/database/supabase-client';
+import { isGeminiSummarizeConfigured, summarizeMemoryWithGemini } from '../lib/gemini-summarize';
+import { isLocalLlmSummarizeConfigured, summarizeMemoryWithLocalLlm } from '../lib/local-llm-summarize';
 
 /** 根据回忆字段生成本地模板总结（不依赖任何区域锁定的云端大模型） */
 function buildTemplateMemorySummary(memory: {
@@ -19,7 +21,7 @@ function buildTemplateMemorySummary(memory: {
   if (loc) bits.push(`地点是 ${loc}`);
   if (weather) bits.push(`天气 ${weather}`);
   if (mood) bits.push(`心情 ${mood}`);
-  return `${bits.join('，')}。\n\n这是一段值得慢慢回味的家庭瞬间。以上为根据回忆信息整理的模板总结；若后续接入自建或全球化 AI 服务，可替换为个性化文案与配图。`;
+  return `${bits.join('，')}。\n\n这是一段值得慢慢回味的家庭瞬间。以上为根据回忆信息整理的模板总结；服务端可配置 Gemini（GEMINI_API_KEY）或局域网 OpenAI 兼容模型以生成个性化文案。`;
 }
 
 const router = Router();
@@ -421,10 +423,53 @@ router.post('/:id/summarize', async (req, res) => {
       return res.status(404).json({ error: '回忆不存在' });
     }
 
+    const row = memory as Record<string, unknown>;
+
+    const geminiOn = isGeminiSummarizeConfigured();
+    const localOn = isLocalLlmSummarizeConfigured();
+
+    if (geminiOn) {
+      try {
+        const summary = await summarizeMemoryWithGemini(row);
+        return res.json({
+          summary,
+          imageUrl: null,
+          stub: false,
+        });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn('Gemini 回忆总结失败，尝试本地 LLM 或模板:', msg);
+      }
+    }
+
+    if (localOn) {
+      try {
+        const summary = await summarizeMemoryWithLocalLlm(row);
+        return res.json({
+          summary,
+          imageUrl: null,
+          stub: false,
+        });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn('本地 LLM 回忆总结失败，回退模板:', msg);
+      }
+    }
+
+    let stubReason: 'no_llm' | 'gemini_failed' | 'local_failed' | 'gemini_then_local_failed' = 'no_llm';
+    if (geminiOn && localOn) {
+      stubReason = 'gemini_then_local_failed';
+    } else if (geminiOn) {
+      stubReason = 'gemini_failed';
+    } else if (localOn) {
+      stubReason = 'local_failed';
+    }
+
     return res.json({
       summary: buildTemplateMemorySummary(memory),
       imageUrl: null,
       stub: true,
+      stubReason,
     });
   } catch (error: any) {
     console.error('生成回忆总结失败:', error);

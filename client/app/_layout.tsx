@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LogBox } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { useMemo } from 'react';
 import { Provider } from '@/components/Provider';
 import { I18nextProvider } from 'react-i18next';
 import { useTranslation } from 'react-i18next';
@@ -14,58 +15,71 @@ LogBox.ignoreLogs([
 ]);
 
 function RootNavigator() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  const stackScreenOptions = useMemo(
+    () => ({
+      animation: 'slide_from_right' as const,
+      gestureEnabled: true,
+      gestureDirection: 'horizontal' as const,
+      headerShown: false,
+    }),
+    []
+  );
+
+  const addMemoryOptions = useMemo(
+    () => ({
+      title: t('addMemory.fabLabel'),
+      animation: 'slide_from_bottom' as const,
+      presentation: 'modal' as const,
+    }),
+    [i18n.language, t]
+  );
+
+  const memoryDetailOptions = useMemo(
+    () => ({
+      title: t('memoryDetail.title'),
+      animation: 'fade' as const,
+    }),
+    [i18n.language, t]
+  );
+
+  const nfcOptions = useMemo(
+    () => ({
+      title: t('nfc.title'),
+      animation: 'slide_from_bottom' as const,
+      presentation: 'modal' as const,
+    }),
+    [i18n.language, t]
+  );
+
+  const vlogOptions = useMemo(
+    () => ({
+      title: t('vlog.title'),
+      animation: 'slide_from_bottom' as const,
+      presentation: 'modal' as const,
+    }),
+    [i18n.language, t]
+  );
+
+  const photoViewerOptions = useMemo(
+    () => ({
+      title: t('common.photoViewer'),
+      animation: 'fade' as const,
+      presentation: 'card' as const,
+    }),
+    [i18n.language, t]
+  );
 
   return (
     <Provider>
-      <Stack
-        screenOptions={{
-          animation: 'slide_from_right',
-          gestureEnabled: true,
-          gestureDirection: 'horizontal',
-          headerShown: false,
-        }}
-      >
+      <Stack screenOptions={stackScreenOptions}>
         <Stack.Screen name="(tabs)" options={{ title: '' }} />
-        <Stack.Screen
-          name="add-memory"
-          options={{
-            title: t('addMemory.fabLabel'),
-            animation: 'slide_from_bottom',
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen
-          name="memory-detail"
-          options={{
-            title: t('memoryDetail.title'),
-            animation: 'fade',
-          }}
-        />
-        <Stack.Screen
-          name="nfc"
-          options={{
-            title: t('nfc.title'),
-            animation: 'slide_from_bottom',
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen
-          name="vlog"
-          options={{
-            title: t('vlog.title'),
-            animation: 'slide_from_bottom',
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen
-          name="photo-viewer"
-          options={{
-            title: t('common.photoViewer'),
-            animation: 'fade',
-            presentation: 'card',
-          }}
-        />
+        <Stack.Screen name="add-memory" options={addMemoryOptions} />
+        <Stack.Screen name="memory-detail" options={memoryDetailOptions} />
+        <Stack.Screen name="nfc" options={nfcOptions} />
+        <Stack.Screen name="vlog" options={vlogOptions} />
+        <Stack.Screen name="photo-viewer" options={photoViewerOptions} />
       </Stack>
       <Toast />
     </Provider>

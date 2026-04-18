@@ -1,38 +1,22 @@
 import { AuthProvider } from '@/contexts/AuthContext';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View, ActivityIndicator } from 'react-native';
 import { WebOnlyColorSchemeUpdater } from './ColorSchemeUpdater';
 import { initI18n } from '@/locales/i18n';
 
 function Provider({ children }: { children: ReactNode }) {
-  const [i18nInitialized, setI18nInitialized] = useState(false);
-
   useEffect(() => {
-    // 初始化 i18n
-    initI18n().then(() => {
-      setI18nInitialized(true);
-    });
+    void initI18n();
   }, []);
 
-  // 如果 i18n 还未初始化，显示加载中
-  if (!i18nInitialized) {
-    return (
-      <WebOnlyColorSchemeUpdater>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F8FA' }}>
-          <ActivityIndicator size="large" color="#7C6AFF" />
-        </View>
-      </WebOnlyColorSchemeUpdater>
-    );
-  }
-
-  return <WebOnlyColorSchemeUpdater>
-    <AuthProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        {children}
-      </GestureHandlerRootView>
-    </AuthProvider>
-  </WebOnlyColorSchemeUpdater>
+  /** 始终挂载子树：`i18n` 已在 `i18n.ts` 模块加载时同步 init，此处仅恢复 AsyncStorage 语言。若在 init 完成前用占位替换整个子树，会导致 `<Stack>` 卸载再挂载，易与 Expo Router + `useTranslation` 触发「Too many re-renders」。 */
+  return (
+    <WebOnlyColorSchemeUpdater>
+      <AuthProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>{children}</GestureHandlerRootView>
+      </AuthProvider>
+    </WebOnlyColorSchemeUpdater>
+  );
 }
 
 export {

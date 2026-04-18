@@ -204,6 +204,8 @@ export default function MemoryDetailScreen() {
   const [summaryText, setSummaryText] = useState('');
   const [summaryImageUrl, setSummaryImageUrl] = useState<string | null>(null);
   const [summaryIsStub, setSummaryIsStub] = useState(false);
+  /** 模板回退时服务端返回的原因码，用于展示更具体的排查提示 */
+  const [summaryStubReason, setSummaryStubReason] = useState<string | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [showVoiceInteraction, setShowVoiceInteraction] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
@@ -413,6 +415,7 @@ export default function MemoryDetailScreen() {
     setIsGeneratingSummary(true);
     setSummaryImageUrl(null);
     setSummaryIsStub(false);
+    setSummaryStubReason(null);
     try {
       /**
        * 服务端文件：server/src/routes/memories.ts
@@ -447,10 +450,14 @@ export default function MemoryDetailScreen() {
         summary?: string;
         imageUrl?: string | null;
         stub?: boolean;
+        stubReason?: string;
       };
       setSummaryText(typeof data.summary === 'string' ? data.summary : '');
       setSummaryImageUrl(data.imageUrl ?? null);
       setSummaryIsStub(Boolean(data.stub));
+      setSummaryStubReason(
+        typeof data.stubReason === 'string' && data.stubReason.length > 0 ? data.stubReason : null
+      );
       setShowSummaryModal(true);
     } catch (error: any) {
       console.error('生成总结失败:', error);
@@ -932,7 +939,24 @@ export default function MemoryDetailScreen() {
               </View>
               <Text style={styles.summaryTitle}>{t('memoryDetail.summaryTitle')}</Text>
               {summaryIsStub ? (
-                <Text style={styles.summaryStubHint}>{t('memoryDetail.stubSummaryHint')}</Text>
+                <View>
+                  <Text style={styles.summaryStubHint}>{t('memoryDetail.stubSummaryHint')}</Text>
+                  {summaryStubReason === 'gemini_failed' ? (
+                    <Text style={styles.summaryStubHintSecondary}>
+                      {t('memoryDetail.stubReasonGeminiFailed')}
+                    </Text>
+                  ) : null}
+                  {summaryStubReason === 'local_failed' ? (
+                    <Text style={styles.summaryStubHintSecondary}>
+                      {t('memoryDetail.stubReasonLocalFailed')}
+                    </Text>
+                  ) : null}
+                  {summaryStubReason === 'gemini_then_local_failed' ? (
+                    <Text style={styles.summaryStubHintSecondary}>
+                      {t('memoryDetail.stubReasonGeminiThenLocalFailed')}
+                    </Text>
+                  ) : null}
+                </View>
               ) : null}
             </View>
 
@@ -1547,6 +1571,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: '#888',
+    textAlign: 'center',
+  },
+  summaryStubHintSecondary: {
+    marginTop: 10,
+    paddingHorizontal: 10,
+    fontSize: 11,
+    lineHeight: 17,
+    color: '#B45309',
     textAlign: 'center',
   },
   summaryContentScroll: {

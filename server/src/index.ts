@@ -1,5 +1,7 @@
 import './load-env';
 import path from 'path';
+import { isGeminiSummarizeConfigured } from './lib/gemini-summarize';
+import { isLocalLlmSummarizeConfigured } from './lib/local-llm-summarize';
 import express from "express";
 import cors from "cors";
 import memoriesRouter from "./routes/memories";
@@ -24,10 +26,17 @@ const localVlogUploadDir = path.join(path.resolve(process.cwd(), 'data', 'local-
 app.use('/uploads/local-memories', express.static(localMemoryUploadDir));
 app.use('/uploads/local-vlogs', express.static(localVlogUploadDir));
 
-// Health check
+// Health check（summarize 字段便于确认当前进程是否读到 Gemini / 本地 LLM 环境变量）
 app.get('/api/v1/health', (req, res) => {
   console.log('Health check success');
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    summarize: {
+      gemini: isGeminiSummarizeConfigured(),
+      localLlm: isLocalLlmSummarizeConfigured(),
+    },
+  });
 });
 
 // API Routes
@@ -89,4 +98,7 @@ app.post('/api/v1/nfc/:tagId/bind', (req, res) => {
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}/`);
   console.log(`API available at http://localhost:${port}/api/v1/`);
+  console.log(
+    `[summarize] Gemini: ${isGeminiSummarizeConfigured() ? 'on' : 'off'}, local LLM: ${isLocalLlmSummarizeConfigured() ? 'on' : 'off'}`
+  );
 });

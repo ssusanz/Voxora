@@ -2,7 +2,48 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { requireOptionalNativeModule } from 'expo';
 import { getBackendBaseUrl } from '@/utils/backend';
+
+/** 与 expo-speech-recognition 的 ExpoSpeechRecognitionModule 一致的最小形状（不经由会 requireNativeModule 的包入口加载） */
+type NativeSpeechModule = {
+  isRecognitionAvailable?: () => boolean;
+  requestPermissionsAsync: () => Promise<{ granted: boolean }>;
+  addListener: (
+    event: string,
+    cb: (e: { message?: string; results?: { transcript?: string }[] }) => void
+  ) => { remove: () => void };
+  start: (opts: Record<string, unknown>) => void;
+  stop?: () => void;
+  abort?: () => void;
+};
+
+let expoSpeechNativeModule: NativeSpeechModule | null | undefined;
+
+/**
+ * 使用 requireOptionalNativeModule，避免 import('expo-speech-recognition') 时其入口文件
+ * 同步 requireNativeModule 并在 Expo Go / 未重编原生壳 时抛错刷红屏。
+ */
+function getOptionalExpoSpeechNativeModule(): NativeSpeechModule | null {
+  if (expoSpeechNativeModule !== undefined) {
+    return expoSpeechNativeModule;
+  }
+  const mod = requireOptionalNativeModule<NativeSpeechModule>('ExpoSpeechRecognition');
+  if (!mod) {
+    expoSpeechNativeModule = null;
+    return null;
+  }
+  const stop = mod.stop;
+  const abort = mod.abort;
+  if (typeof abort === 'function') {
+    mod.abort = () => abort();
+  }
+  if (typeof stop === 'function') {
+    mod.stop = () => stop();
+  }
+  expoSpeechNativeModule = mod;
+  return mod;
+}
 
 /** 是否在 Expo Go 中运行（Store Client 即官方 Expo Go 壳） */
 function isRunningInsideExpoGo(): boolean {
@@ -200,12 +241,7 @@ export default function VoiceInput({
       clearSpeechListeners();
       return;
     }
-    try {
-      const { ExpoSpeechRecognitionModule } = await import('expo-speech-recognition');
-      ExpoSpeechRecognitionModule?.abort?.();
-    } catch {
-      /* module missing (e.g. Expo Go) or load failure */
-    }
+    getOptionalExpoSpeechNativeModule()?.abort?.();
     clearSpeechListeners();
     deviceSpeechActiveRef.current = false;
     if (intervalRef.current) {
@@ -253,32 +289,7 @@ export default function VoiceInput({
   };
 
   const tryStartDeviceSpeech = async (): Promise<boolean> => {
-    type NativeSpeechModule = {
-      isRecognitionAvailable?: () => boolean;
-      requestPermissionsAsync: () => Promise<{ granted: boolean }>;
-      addListener: (
-        event: string,
-        cb: (e: { message?: string; results?: { transcript?: string }[] }) => void
-      ) => { remove: () => void };
-      start: (opts: Record<string, unknown>) => void;
-    };
-    let ExpoSpeechRecognitionModule: NativeSpeechModule | null = null;
-    try {
-      const mod = (await import('expo-speech-recognition')) as {
-        ExpoSpeechRecognitionModule?: NativeSpeechModule;
-      };
-      ExpoSpeechRecognitionModule = mod.ExpoSpeechRecognitionModule ?? null;
-    } catch (e) {
-      console.warn('expo-speech-recognition failed to load:', e);
-      const msg = e instanceof Error ? e.message : String(e);
-      if (/native module|ExpoSpeechRecognition|Cannot find native module|TurboModuleRegistry/i.test(msg)) {
-        showToast(getSpeechNativeModuleHint(), 'error');
-      } else {
-        showToast(`语音识别模块加载失败：${msg}`, 'error');
-      }
-      return false;
-    }
-
+    const ExpoSpeechRecognitionModule = getOptionalExpoSpeechNativeModule();
     if (!ExpoSpeechRecognitionModule) {
       showToast(getSpeechNativeModuleHint(), 'error');
       return false;
@@ -688,8 +699,7 @@ export default function VoiceInput({
     void (async () => {
       if (deviceSpeechActiveRef.current) {
         try {
-          const { ExpoSpeechRecognitionModule } = await import('expo-speech-recognition');
-          ExpoSpeechRecognitionModule?.stop?.();
+          getOptionalExpoSpeechNativeModule()?.stop?.();
         } catch {
           deviceSpeechActiveRef.current = false;
           setIsRecording(false);
