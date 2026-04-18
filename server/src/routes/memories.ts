@@ -423,7 +423,26 @@ router.post('/:id/summarize', async (req, res) => {
       return res.status(404).json({ error: '回忆不存在' });
     }
 
-    const row = memory as Record<string, unknown>;
+    let row = memory as Record<string, unknown>;
+    try {
+      const uid =
+        (typeof row.user_id === 'string' && row.user_id.trim()) ||
+        (typeof row.userId === 'string' && row.userId.trim()) ||
+        '';
+      if (uid) {
+        const { data: authorRow, error: authorErr } = await client
+          .from('users')
+          .select('name')
+          .eq('id', uid)
+          .maybeSingle();
+        if (!authorErr && authorRow && typeof (authorRow as { name?: unknown }).name === 'string') {
+          const n = String((authorRow as { name: string }).name).trim();
+          if (n) row = { ...row, author_display_name: n };
+        }
+      }
+    } catch {
+      /* 无 users 表或查询失败时不阻断总结 */
+    }
 
     const geminiOn = isGeminiSummarizeConfigured();
     const localOn = isLocalLlmSummarizeConfigured();
