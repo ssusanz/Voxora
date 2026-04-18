@@ -1,12 +1,28 @@
 import { Router } from 'express';
-import { LLMClient, Config, ImageGenerationClient } from 'coze-coding-dev-sdk';
 import { getSupabaseClient } from '../storage/database/supabase-client';
 
+/** 根据回忆字段生成本地模板总结（不依赖任何区域锁定的云端大模型） */
+function buildTemplateMemorySummary(memory: {
+  title?: string | null;
+  date?: string | null;
+  location?: string | null;
+  weather?: string | null;
+  mood?: string | null;
+}): string {
+  const title = (memory.title || '这段回忆').trim();
+  const date = (memory.date || '').trim();
+  const loc = (memory.location || '').trim();
+  const weather = (memory.weather || '').trim();
+  const mood = (memory.mood || '').trim();
+  const bits: string[] = [`「${title}」`];
+  if (date) bits.push(`记录在 ${date}`);
+  if (loc) bits.push(`地点是 ${loc}`);
+  if (weather) bits.push(`天气 ${weather}`);
+  if (mood) bits.push(`心情 ${mood}`);
+  return `${bits.join('，')}。\n\n这是一段值得慢慢回味的家庭瞬间。以上为根据回忆信息整理的模板总结；若后续接入自建或全球化 AI 服务，可替换为个性化文案与配图。`;
+}
+
 const router = Router();
-const llmConfig = new Config();
-const llmClient = new LLMClient(llmConfig);
-const imageConfig = new Config();
-const imageClient = new ImageGenerationClient(imageConfig);
 
 // 获取所有回忆（按时间倒序，过滤隐藏）
 router.get('/', async (req, res) => {
@@ -405,65 +421,17 @@ router.post('/:id/summarize', async (req, res) => {
       return res.status(404).json({ error: '回忆不存在' });
     }
 
-    // 构建 prompt，包含回忆的所有信息
-    const memoryContent = `
-    回忆标题：${memory.title}
-    时间：${memory.date}
-    地点：${memory.location}
-    天气：${memory.weather}
-    心情：${memory.mood}
-    参与人数：${memory.user_count}
-    点赞数：${memory.likes}
-    `;
-
-    const messages = [
-      {
-        role: 'system' as const,
-        content: '你是一个温馨的家庭回忆助手，擅长用温暖、简洁的语言总结家庭美好回忆。',
-      },
-      {
-        role: 'user' as const,
-        content: `请帮我总结这段家庭回忆，用温馨的语言描述，字数控制在100字以内：\n${memoryContent}`,
-      },
-    ];
-
-    // 使用 LLM 生成总结
-    const llmResponse = await llmClient.invoke(messages, {
-      model: 'doubao-seed-2-0-lite-260215',
-      temperature: 0.8,
-    });
-
-    const summary = llmResponse.content;
-
-    // 生成图片的 prompt
-    const imagePrompt = `温馨的家庭回忆场景，${memory.location}，${memory.weather}天气，家人聚会，幸福快乐，温暖柔和的色调，插画风格，家庭氛围感强`;
-
-    // 使用 ImageGenerationClient 生成图片
-    const imageResponse = await imageClient.generate({
-      prompt: imagePrompt,
-      size: '2K',
-      watermark: false,
-    });
-
-    const imageHelper = imageClient.getResponseHelper(imageResponse);
-
-    if (!imageHelper.success) {
-      console.error('图片生成失败:', imageHelper.errorMessages);
-      // 即使图片生成失败，也返回文字总结
-      res.json({
-        summary,
-        imageUrl: null,
-      });
-      return;
-    }
-
-    res.json({
-      summary,
-      imageUrl: imageHelper.imageUrls[0],
+    return res.json({
+      summary: buildTemplateMemorySummary(memory),
+      imageUrl: null,
+      stub: true,
     });
   } catch (error: any) {
-    console.error('LLM 生成总结失败:', error);
-    res.status(500).json({ error: '生成总结失败，请稍后重试' });
+    console.error('生成回忆总结失败:', error);
+    res.status(500).json({
+      error: '生成总结失败，请稍后重试',
+      message: typeof error?.message === 'string' ? error.message : undefined,
+    });
   }
 });
 

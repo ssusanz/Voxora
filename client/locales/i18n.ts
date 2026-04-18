@@ -242,6 +242,7 @@ const zhCN = {
     "sendEmotion": "发送情感",
     "voiceInteraction": "语音互动",
     "summaryTitle": "回忆总结",
+    "stubSummaryHint": "模板总结：当前为根据回忆字段自动生成的文案（未调用云端大模型）。",
     "close": "关闭",
     "selectMember": "选择你要代表的家庭成员",
     "hideMemory": "隐藏回忆",
@@ -286,6 +287,7 @@ const zhCN = {
     "back": "返回",
     "selectAtLeastOne": "请至少选择一个回忆",
     "generateFailed": "生成Vlog失败，请稍后重试",
+    "generationNotConfigured": "暂未接入 Vlog 视频生成：当前为离线演示，后续版本接入视频服务后即可在此生成。",
     "memoryTitle": "回忆标题",
     "memoryDate": "回忆日期",
     "memoryLocation": "回忆地点"
@@ -585,6 +587,7 @@ const en = {
     "sendEmotion": "Send Emotion",
     "voiceInteraction": "Voice Interaction",
     "summaryTitle": "Memory Summary",
+    "stubSummaryHint": "Template summary: auto-generated from your memory fields (no cloud LLM).",
     "close": "Close",
     "selectMember": "Select the family member you want to represent",
     "hideMemory": "Hide Memory",
@@ -629,6 +632,7 @@ const en = {
     "back": "Back",
     "selectAtLeastOne": "Please select at least one memory",
     "generateFailed": "Failed to generate Vlog, please try again",
+    "generationNotConfigured": "Vlog video generation is not connected yet. This build runs without a video backend; it will be available once your server supports it.",
     "memoryTitle": "Memory Title",
     "memoryDate": "Memory Date",
     "memoryLocation": "Memory Location"
@@ -928,6 +932,7 @@ const hi = {
     "sendEmotion": "भावना भेजें",
     "voiceInteraction": "वॉइस इंटरैक्शन",
     "summaryTitle": "याद सारांश",
+    "stubSummaryHint": "टेम्पलेट सारांश: आपकी याद की जानकारी से बनाया गया (कोई क्लाउड LLM नहीं)।",
     "close": "बंद करें",
     "selectMember": "वह परिवार का सदस्य चुनें जिसे आप प्रस्तुत करना चाहते हैं",
     "hideMemory": "याद छुपाएं",
@@ -972,6 +977,7 @@ const hi = {
     "back": "वापस",
     "selectAtLeastOne": "कृपया कम से कम एक याद चुनें",
     "generateFailed": "Vlog बनाना विफल, कृपया पुनः प्रयास करें",
+    "generationNotConfigured": "Vlog वीडियो जनरेशन अभी उपलब्ध नहीं है। यह ऐप डेमो मोड में है; सर्वर पर वीडियो सेवा जुड़ने के बाद यहाँ जनरेशन चालू होगा।",
     "memoryTitle": "याद शीर्षक",
     "memoryDate": "याद तिथि",
     "memoryLocation": "याद स्थान"

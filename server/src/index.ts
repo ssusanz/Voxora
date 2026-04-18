@@ -1,4 +1,5 @@
 import './load-env';
+import path from 'path';
 import express from "express";
 import cors from "cors";
 import memoriesRouter from "./routes/memories";
@@ -16,6 +17,10 @@ const port = process.env.PORT || 9091;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// 未配置对象存储时，upload 路由会把图片落盘到此目录并通过该 URL 对外提供（仅适合开发/演示）
+const localMemoryUploadDir = path.join(path.resolve(process.cwd(), 'data', 'local-uploads', 'memories'));
+app.use('/uploads/local-memories', express.static(localMemoryUploadDir));
 
 // Health check
 app.get('/api/v1/health', (req, res) => {

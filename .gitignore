@@ -12,6 +12,7 @@ logs/
 node-compile-cache/
 .pnpm-store/
 server/nohup.out
+server/data/
 .cursor/
 
 # Environment variables

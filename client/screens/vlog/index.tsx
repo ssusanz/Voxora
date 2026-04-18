@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, TextInput, M
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useToast } from '@/hooks/useToast';
 import { getBackendBaseUrl } from '@/utils/backend';
 import { useMemoryDisplayText } from '@/hooks/useMemoryDisplayText';
@@ -114,6 +114,38 @@ function VlogPreviewItem({
   );
 }
 
+/** 使用 expo-video，避免 expo-av Video 弃用警告 */
+function VlogResultVideoView({
+  uri,
+  formatDurationLine,
+}: {
+  uri: string;
+  formatDurationLine: (secondsRounded: number) => string;
+}) {
+  const player = useVideoPlayer(uri);
+  const [durationSec, setDurationSec] = useState(0);
+
+  useEffect(() => {
+    const sync = () => {
+      if (player.duration > 0) {
+        setDurationSec(Math.round(player.duration));
+      }
+    };
+    sync();
+    const sub = player.addListener('statusChange', sync);
+    return () => sub.remove();
+  }, [player, uri]);
+
+  return (
+    <View style={styles.videoContainer}>
+      <VideoView style={styles.video} player={player} nativeControls contentFit="contain" />
+      {durationSec > 0 ? (
+        <Text style={styles.videoDuration}>{formatDurationLine(durationSec)}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 export default function VlogScreen() {
   const insets = useSafeAreaInsets();
   const router = useSafeRouter();
@@ -125,11 +157,12 @@ export default function VlogScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [videoStatus, setVideoStatus] = useState<AVPlaybackStatus | null>(null);
 
-  const handleVideoPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    setVideoStatus(status);
-  };
+  const formatDurationLine = useCallback(
+    (secondsRounded: number) =>
+      `${t('vlog.duration')}: ${secondsRounded}${t('common.seconds')}`,
+    [t]
+  );
 
   const toggleMemorySelection = useCallback((memory: Memory) => {
     setSelectedMemories(prev => {
@@ -167,15 +200,30 @@ export default function VlogScreen() {
       });
 
       if (!response.ok) {
-        throw new Error('生成Vlog失败');
+        const errBody = (await response.json().catch(() => ({}))) as {
+          message?: string;
+          error?: string;
+        };
+        const code = typeof errBody.error === 'string' ? errBody.error : '';
+        const msg =
+          code === 'VLOG_GENERATION_DISABLED'
+            ? t('vlog.generationNotConfigured')
+            : (typeof errBody.message === 'string' && errBody.message) ||
+              (typeof errBody.error === 'string' && errBody.error) ||
+              t('vlog.generateFailed');
+        if (response.status >= 500 && response.status !== 501) {
+          console.warn('生成Vlog失败:', msg);
+        }
+        showError(msg);
+        return;
       }
 
       const data = await response.json();
       setGeneratedVideoUrl(data.videoUrl);
       setShowResultModal(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('生成Vlog失败:', error);
-      showError(t('vlog.generateFailed'));
+      showError(error?.message || t('vlog.generateFailed'));
     } finally {
       setIsGenerating(false);
     }
@@ -308,20 +356,11 @@ export default function VlogScreen() {
             </View>
 
             {generatedVideoUrl ? (
-              <View style={styles.videoContainer}>
-                <Video
-                  source={{ uri: generatedVideoUrl }}
-                  style={styles.video}
-                  useNativeControls
-                  resizeMode={ResizeMode.CONTAIN}
-                  onPlaybackStatusUpdate={handleVideoPlaybackStatusUpdate}
-                />
-                {videoStatus && videoStatus.isLoaded && (
-                  <Text style={styles.videoDuration}>
-                    {t('vlog.duration')}: {videoStatus.durationMillis ? `${Math.round(videoStatus.durationMillis / 1000)}${t('common.seconds') || '秒'}` : t('common.loading')}
-                  </Text>
-                )}
-              </View>
+              <VlogResultVideoView
+                key={generatedVideoUrl}
+                uri={generatedVideoUrl}
+                formatDurationLine={formatDurationLine}
+              />
             ) : (
               <ActivityIndicator size="large" color="#7C6AFF" />
             )}

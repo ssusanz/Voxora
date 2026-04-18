@@ -6,7 +6,7 @@
  * 环境变量：
  *   DATABASE_URL - PostgreSQL 数据库连接字符串（可选）
  *   POSTGRES_URL - PostgreSQL 数据库连接字符串（可选）
- *   COZE_SUPABASE_URL - Supabase 项目 URL（会自动提取数据库连接）
+ *   SUPABASE_URL 或 COZE_SUPABASE_URL - Supabase 项目 URL（会自动提取数据库连接）
  */
 
 import fs from 'fs';
@@ -62,11 +62,11 @@ loadDotenvIfPresent();
 // 尝试从多种来源获取数据库连接字符串
 let databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
-// 如果没有直接提供，尝试从 COZE_SUPABASE_URL 提取
-if (!databaseUrl && process.env.COZE_SUPABASE_URL) {
+// 如果没有直接提供，尝试从 Supabase 项目 URL 提取
+const supabaseProjectUrl = process.env.SUPABASE_URL || process.env.COZE_SUPABASE_URL;
+if (!databaseUrl && supabaseProjectUrl) {
   try {
-    // COZE_SUPABASE_URL 格式: https://xxx.supabase.co
-    const supabaseUrl = process.env.COZE_SUPABASE_URL;
+    const supabaseUrl = supabaseProjectUrl;
     const projectId = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 
     if (projectId) {
@@ -76,14 +76,14 @@ if (!databaseUrl && process.env.COZE_SUPABASE_URL) {
 
       if (dbPassword) {
         databaseUrl = `postgresql://postgres:${encodeURIComponent(dbPassword)}@db.${projectId}.supabase.co:5432/postgres`;
-        console.log('✅ 从 COZE_SUPABASE_URL 提取数据库连接字符串');
+        console.log('✅ 从 SUPABASE_URL / COZE_SUPABASE_URL 提取数据库连接字符串');
       } else {
-        console.warn('⚠️  检测到 COZE_SUPABASE_URL 但缺少 SUPABASE_DB_PASSWORD 或 POSTGRES_PASSWORD');
+        console.warn('⚠️  检测到 Supabase URL 但缺少 SUPABASE_DB_PASSWORD 或 POSTGRES_PASSWORD');
         console.warn('⚠️  请设置数据库密码环境变量，或直接设置 DATABASE_URL');
       }
     }
   } catch (error) {
-    console.warn('⚠️  无法从 COZE_SUPABASE_URL 提取数据库连接:', error.message);
+    console.warn('⚠️  无法从 Supabase URL 提取数据库连接:', error.message);
   }
 }
 
@@ -95,7 +95,7 @@ if (!databaseUrl) {
   console.error('  2. POSTGRES_URL - 同上（某些平台使用此名称）');
   console.error('');
   console.error('或者使用 Supabase 环境：');
-  console.error('  3. COZE_SUPABASE_URL + SUPABASE_DB_PASSWORD');
+  console.error('  3. SUPABASE_URL（或 COZE_SUPABASE_URL）+ SUPABASE_DB_PASSWORD');
   console.error('');
   console.error('示例：');
   console.error('  export DATABASE_URL="postgresql://postgres:[password]@db.xxx.supabase.co:5432/postgres"');

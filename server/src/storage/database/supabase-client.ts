@@ -1,5 +1,4 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { execSync } from 'child_process';
 import path from 'path';
 import dotenv from 'dotenv';
 
@@ -10,14 +9,19 @@ interface SupabaseCredentials {
   anonKey: string;
 }
 
+function hasSupabaseEnv(): boolean {
+  return Boolean(
+    (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) ||
+    (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY)
+  );
+}
+
 function loadEnv(): void {
-  if (envLoaded || (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY)) {
+  if (envLoaded || hasSupabaseEnv()) {
     return;
   }
 
   try {
-    // Load from local .env first (common in dev / deploy script).
-    // Prefer project root (.env) then server/.env.
     const candidates = [
       path.resolve(process.cwd(), '.env'),
       path.resolve(process.cwd(), '../.env'),
@@ -25,66 +29,27 @@ function loadEnv(): void {
     ];
     for (const p of candidates) {
       dotenv.config({ path: p, override: false });
-      if (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY) {
+      if (hasSupabaseEnv()) {
         envLoaded = true;
         return;
       }
     }
-
-    const pythonCode = `
-import os
-import sys
-try:
-    from coze_workload_identity import Client
-    client = Client()
-    env_vars = client.get_project_env_vars()
-    client.close()
-    for env_var in env_vars:
-        print(f"{env_var.key}={env_var.value}")
-except Exception as e:
-    print(f"# Error: {e}", file=sys.stderr)
-`;
-
-    const output = execSync(`python3 -c '${pythonCode.replace(/'/g, "'\"'\"'")}'`, {
-      encoding: 'utf-8',
-      timeout: 10000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    const lines = output.trim().split('\n');
-    for (const line of lines) {
-      if (line.startsWith('#')) continue;
-      const eqIndex = line.indexOf('=');
-      if (eqIndex > 0) {
-        const key = line.substring(0, eqIndex);
-        let value = line.substring(eqIndex + 1);
-        if ((value.startsWith("'") && value.endsWith("'")) ||
-            (value.startsWith('"') && value.endsWith('"'))) {
-          value = value.slice(1, -1);
-        }
-        if (!process.env[key]) {
-          process.env[key] = value;
-        }
-      }
-    }
-
-    envLoaded = true;
   } catch {
-    // Silently fail
+    // ignore
   }
 }
 
 function getSupabaseCredentials(): SupabaseCredentials {
   loadEnv();
 
-  const url = process.env.COZE_SUPABASE_URL;
-  const anonKey = process.env.COZE_SUPABASE_ANON_KEY;
+  const url = (process.env.SUPABASE_URL || process.env.COZE_SUPABASE_URL || '').trim();
+  const anonKey = (process.env.SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY || '').trim();
 
   if (!url) {
-    throw new Error('COZE_SUPABASE_URL is not set');
+    throw new Error('SUPABASE_URL or COZE_SUPABASE_URL is not set');
   }
   if (!anonKey) {
-    throw new Error('COZE_SUPABASE_ANON_KEY is not set');
+    throw new Error('SUPABASE_ANON_KEY or COZE_SUPABASE_ANON_KEY is not set');
   }
 
   return { url, anonKey };
@@ -92,7 +57,11 @@ function getSupabaseCredentials(): SupabaseCredentials {
 
 function getSupabaseServiceRoleKey(): string | undefined {
   loadEnv();
-  return process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+  return (
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    process.env.COZE_SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    undefined
+  );
 }
 
 function getSupabaseClient(token?: string): SupabaseClient {

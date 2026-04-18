@@ -178,6 +178,7 @@ export default function MemoryDetailScreen() {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summaryText, setSummaryText] = useState('');
   const [summaryImageUrl, setSummaryImageUrl] = useState<string | null>(null);
+  const [summaryIsStub, setSummaryIsStub] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [showVoiceInteraction, setShowVoiceInteraction] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
@@ -386,6 +387,7 @@ export default function MemoryDetailScreen() {
 
     setIsGeneratingSummary(true);
     setSummaryImageUrl(null);
+    setSummaryIsStub(false);
     try {
       /**
        * 服务端文件：server/src/routes/memories.ts
@@ -400,17 +402,34 @@ export default function MemoryDetailScreen() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '生成总结失败');
+        const errorData = (await response.json().catch(() => ({}))) as {
+          message?: string;
+          error?: string;
+        };
+        const msg =
+          (typeof errorData.message === 'string' && errorData.message) ||
+          (typeof errorData.error === 'string' && errorData.error) ||
+          '生成总结失败';
+        // 避免 throw：HTTP 业务错误不应走 catch，否则 Metro 会打一整段 ERROR 堆栈
+        if (response.status >= 500) {
+          console.warn('生成总结失败:', msg);
+        }
+        showError(msg);
+        return;
       }
 
-      const data = await response.json();
-      setSummaryText(data.summary);
-      setSummaryImageUrl(data.imageUrl || null);
+      const data = (await response.json()) as {
+        summary?: string;
+        imageUrl?: string | null;
+        stub?: boolean;
+      };
+      setSummaryText(typeof data.summary === 'string' ? data.summary : '');
+      setSummaryImageUrl(data.imageUrl ?? null);
+      setSummaryIsStub(Boolean(data.stub));
       setShowSummaryModal(true);
     } catch (error: any) {
       console.error('生成总结失败:', error);
-      showError(t('memoryDetail.summaryFailed'));
+      showError(error?.message || t('memoryDetail.summaryFailed'));
     } finally {
       setIsGeneratingSummary(false);
     }
@@ -854,6 +873,8 @@ export default function MemoryDetailScreen() {
                 onChangeText={setCommentText}
                 multiline
                 maxLength={100}
+                textAlignVertical="top"
+                scrollEnabled={false}
               />
             </View>
             
@@ -893,6 +914,9 @@ export default function MemoryDetailScreen() {
                 <Ionicons name="sparkles" size={28} color="#FF7B8A" />
               </View>
               <Text style={styles.summaryTitle}>{t('memoryDetail.summaryTitle')}</Text>
+              {summaryIsStub ? (
+                <Text style={styles.summaryStubHint}>{t('memoryDetail.stubSummaryHint')}</Text>
+              ) : null}
             </View>
 
             <ScrollView style={styles.summaryContentScroll}>
@@ -1499,6 +1523,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#333',
+  },
+  summaryStubHint: {
+    marginTop: 8,
+    paddingHorizontal: 8,
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#888',
+    textAlign: 'center',
   },
   summaryContentScroll: {
     maxHeight: 400,

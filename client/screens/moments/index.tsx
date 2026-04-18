@@ -253,7 +253,7 @@ function PhotoViewer({
   const safePhotos = photos ?? [];
 
   // NOTE(video-generation): 接入真实的视频生成服务（替换当前 demo 禁用逻辑）
-  // 当前工程已脱离 Coze 上游：后端 `/api/v1/video/awaken` 在未配置视频生成端点时会返回 501。
+  // 后端 `/api/v1/video/awaken` 当前返回 501（图生视频需后续接入自建或全球化服务）。
   // 为避免用户误以为“唤醒失败是图片 URL 问题”，这里默认禁用入口（方案 A）。
   const AWAKEN_VIDEO_ENABLED = false;
 

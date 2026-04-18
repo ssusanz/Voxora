@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -132,6 +132,177 @@ export default function VoiceInput({
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const onTranscribedRef = useRef(onTranscribed);
+  onTranscribedRef.current = onTranscribed;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  /** device: expo-speech-recognition；legacy: 录音后上传（服务端 ASR 已关闭时为回退） */
+  const [speechEngine, setSpeechEngine] = useState<'none' | 'device' | 'legacy'>('none');
+  const deviceSpeechActiveRef = useRef(false);
+  const speechTranscriptRef = useRef('');
+  const speechListenersRef = useRef<{ remove: () => void }[]>([]);
+
+  const clearSpeechListeners = () => {
+    speechListenersRef.current.forEach((s) => {
+      try {
+        s.remove();
+      } catch {
+        /* ignore */
+      }
+    });
+    speechListenersRef.current = [];
+  };
+
+  const abortDeviceSpeech = async () => {
+    if (!deviceSpeechActiveRef.current) {
+      clearSpeechListeners();
+      return;
+    }
+    try {
+      const { ExpoSpeechRecognitionModule } = await import('expo-speech-recognition');
+      ExpoSpeechRecognitionModule.abort();
+    } catch {
+      /* module missing in some clients */
+    }
+    clearSpeechListeners();
+    deviceSpeechActiveRef.current = false;
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsRecording(false);
+    setSpeechEngine('none');
+  };
+
+  const finalizeDeviceSpeech = async (text: string) => {
+    setIsProcessing(true);
+    try {
+      const m = modeRef.current;
+      if (m === 'extract') {
+        const baseUrl = getBackendBaseUrl();
+        const res = await fetch(`${baseUrl}/api/v1/voice/extract-memory-info`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcription: text }),
+        });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+          throw new Error(body.message || body.error || '提取回忆信息失败');
+        }
+        const data = (await res.json()) as { transcription: string; extractedInfo: unknown };
+        onCompleteRef.current?.({
+          transcription: data.transcription,
+          extractedInfo: data.extractedInfo ?? null,
+        });
+        showToast('语音识别成功', 'success');
+        setTimeout(() => onCloseRef.current(), 500);
+      } else {
+        onTranscribedRef.current?.(text);
+        showToast('语音识别成功', 'success');
+        setTimeout(() => onCloseRef.current(), 500);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '处理失败';
+      showToast(msg, 'error');
+    } finally {
+      setIsProcessing(false);
+      setSpeechEngine('none');
+    }
+  };
+
+  const tryStartDeviceSpeech = async (): Promise<boolean> => {
+    try {
+      const { ExpoSpeechRecognitionModule } = await import('expo-speech-recognition');
+      if (ExpoSpeechRecognitionModule.isRecognitionAvailable?.() === false) {
+        return false;
+      }
+
+      const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!perm.granted) {
+        showToast('需要麦克风与语音识别权限 / Mic & speech recognition required', 'error');
+        return false;
+      }
+
+      speechTranscriptRef.current = '';
+      clearSpeechListeners();
+
+      speechListenersRef.current.push(
+        ExpoSpeechRecognitionModule.addListener('result', (event) => {
+          const t = event.results[0]?.transcript;
+          if (typeof t === 'string') speechTranscriptRef.current = t;
+        })
+      );
+
+      speechListenersRef.current.push(
+        ExpoSpeechRecognitionModule.addListener('error', (e) => {
+          console.warn('expo-speech-recognition error', e);
+          clearSpeechListeners();
+          deviceSpeechActiveRef.current = false;
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          setIsRecording(false);
+          setSpeechEngine('none');
+          showToast(e.message || '语音识别失败 / Speech recognition failed', 'error');
+        })
+      );
+
+      speechListenersRef.current.push(
+        ExpoSpeechRecognitionModule.addListener('end', () => {
+          clearSpeechListeners();
+          deviceSpeechActiveRef.current = false;
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          setIsRecording(false);
+          const raw = speechTranscriptRef.current.trim();
+          if (!raw) {
+            showToast('未识别到语音内容 / No speech recognized', 'error');
+            setSpeechEngine('none');
+            return;
+          }
+          void finalizeDeviceSpeech(raw);
+        })
+      );
+
+      const { getLocales } = await import('expo-localization');
+      const locales = getLocales();
+      const lang = locales[0]?.languageTag?.replace('_', '-') || 'en-US';
+
+      const androidApi =
+        Platform.OS === 'android' ? parseInt(String(Platform.Version), 10) : 0;
+      const continuous =
+        Platform.OS === 'ios' ||
+        (Platform.OS === 'android' && !Number.isNaN(androidApi) && androidApi >= 33);
+
+      ExpoSpeechRecognitionModule.start({
+        lang,
+        interimResults: true,
+        continuous,
+        addsPunctuation: true,
+      });
+
+      deviceSpeechActiveRef.current = true;
+      setSpeechEngine('device');
+      setIsRecording(true);
+      setRecordingDuration(0);
+      intervalRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+      return true;
+    } catch (err) {
+      console.warn('Device speech unavailable, using legacy recorder:', err);
+      return false;
+    }
+  };
+
   // 清理函数
   useEffect(() => {
     return () => {
@@ -139,10 +310,18 @@ export default function VoiceInput({
         clearInterval(intervalRef.current);
       }
       if (webRecordingRef.current.stream) {
-        webRecordingRef.current.stream.getTracks().forEach(track => track.stop());
+        webRecordingRef.current.stream.getTracks().forEach((track) => track.stop());
       }
+      void abortDeviceSpeech();
     };
   }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      void abortDeviceSpeech();
+      setSpeechEngine('none');
+    }
+  }, [visible]);
 
   // ============ Web 平台录音实现 ============
   const startWebRecording = async () => {
@@ -281,6 +460,7 @@ export default function VoiceInput({
     }
     setIsRecording(false);
     setRecordingDuration(0);
+    setSpeechEngine('none');
 
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
@@ -427,6 +607,7 @@ export default function VoiceInput({
     }
     setIsRecording(false);
     setRecordingDuration(0);
+    setSpeechEngine('none');
 
     if (nativeRecording) {
       try {
@@ -442,33 +623,50 @@ export default function VoiceInput({
 
   // ============ 统一的录音控制 ============
   const startRecording = () => {
-    if (isWebPlatform) {
-      startWebRecording();
-    } else {
-      startNativeRecording();
-    }
+    void (async () => {
+      const ok = await tryStartDeviceSpeech();
+      if (ok) return;
+      setSpeechEngine('legacy');
+      if (isWebPlatform) await startWebRecording();
+      else await startNativeRecording();
+    })();
   };
 
   const stopRecording = () => {
-    if (isWebPlatform) {
-      stopWebRecording();
-    } else {
-      stopNativeRecording();
-    }
+    void (async () => {
+      if (deviceSpeechActiveRef.current) {
+        try {
+          const { ExpoSpeechRecognitionModule } = await import('expo-speech-recognition');
+          ExpoSpeechRecognitionModule.stop();
+        } catch {
+          deviceSpeechActiveRef.current = false;
+          setIsRecording(false);
+          setSpeechEngine('none');
+        }
+        return;
+      }
+      if (isWebPlatform) await stopWebRecording();
+      else await stopNativeRecording();
+    })();
   };
 
   const cancelRecording = () => {
-    if (isWebPlatform) {
-      cancelWebRecording();
-    } else {
-      cancelNativeRecording();
-    }
+    void (async () => {
+      if (deviceSpeechActiveRef.current) {
+        await abortDeviceSpeech();
+        onClose();
+        return;
+      }
+      if (isWebPlatform) await cancelWebRecording();
+      else await cancelNativeRecording();
+    })();
   };
 
   // ============ 上传音频到后端 ============
   const uploadAudio = async (audioBase64: string, filename: string, mimeType: string) => {
     if (typeof audioBase64 !== 'string' || audioBase64.trim().length < 100) {
       showToast('未检测到有效音频，请重试并对着麦克风说话', 'error');
+      setSpeechEngine('none');
       return;
     }
 
@@ -540,6 +738,7 @@ export default function VoiceInput({
       showToast('网络请求失败，请重试', 'error');
     } finally {
       setIsProcessing(false);
+      setSpeechEngine('none');
     }
   };
 
@@ -589,7 +788,13 @@ export default function VoiceInput({
 
             {/* 录音提示 */}
             <Text style={styles.title}>
-              {isProcessing ? '处理中...' : isRecording ? '正在录音...' : title}
+              {isProcessing
+                ? '处理中...'
+                : isRecording
+                  ? speechEngine === 'device'
+                    ? '正在聆听…'
+                    : '正在录音...'
+                  : title}
             </Text>
 
             {/* 录音时长 */}
@@ -628,7 +833,15 @@ export default function VoiceInput({
 
             {/* 平台标识 */}
             <Text style={styles.platformHint}>
-              {isWebPlatform ? 'Web 平台' : '移动平台'}
+              {speechEngine === 'device'
+                ? 'On-device speech (iOS/Android/Web)'
+                : speechEngine === 'legacy'
+                  ? isWebPlatform
+                    ? 'Web · 录音回退'
+                    : '移动 · 录音回退'
+                  : isWebPlatform
+                    ? 'Web 平台'
+                    : '移动平台'}
             </Text>
           </View>
         </View>

@@ -67,7 +67,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           "microphonePermission": `Voxora 家庭回忆录App需要访问麦克风以录制视频声音。`,
           "recordAudioAndroid": true
         }
-      ]
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          microphonePermission: `${appName} needs the microphone to capture your voice for memories.`,
+          speechRecognitionPermission: `${appName} transcribes speech on your device (no region-locked cloud ASR).`,
+          androidSpeechServicePackages: ["com.google.android.googlequicksearchbox"],
+        },
+      ],
     ],
     "experiments": {
       "typedRoutes": true

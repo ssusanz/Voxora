@@ -175,7 +175,15 @@ export default function AddMemoryScreen() {
         });
 
         if (!uploadRes.ok) {
-          throw new Error(`图片 ${i + 1} 上传失败`);
+          const errJson = (await uploadRes.json().catch(() => ({}))) as {
+            message?: string;
+            error?: string;
+          };
+          const detail =
+            (typeof errJson.message === 'string' && errJson.message) ||
+            (typeof errJson.error === 'string' && errJson.error) ||
+            `HTTP ${uploadRes.status}`;
+          throw new Error(`图片 ${i + 1} 上传失败：${detail}`);
         }
 
         const uploadData = await uploadRes.json();
