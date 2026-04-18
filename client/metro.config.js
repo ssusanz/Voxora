@@ -1,9 +1,20 @@
+const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const connect = require('connect');
 const { withUniwindConfig } = require('uniwind/metro');
 
-const config = getDefaultConfig(__dirname);
+const projectRoot = __dirname;
+/** monorepo 根（client 的上一级），便于 pnpm 从仓库根解析依赖 */
+const workspaceRoot = path.resolve(projectRoot, '..');
+
+const config = getDefaultConfig(projectRoot);
+
+config.watchFolders = [...new Set([...(config.watchFolders || []), workspaceRoot])];
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, 'node_modules'),
+  path.resolve(workspaceRoot, 'node_modules'),
+];
 
 // 安全地获取 Expo 的默认排除列表
 const existingBlockList = [].concat(config.resolver.blockList || []);

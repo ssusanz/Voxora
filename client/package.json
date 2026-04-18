@@ -11,6 +11,10 @@
     "start": "expo start --web --clear",
     "start:mobile": "expo start",
     "start:mobile:clean": "expo start --clear",
+    "eas:login": "eas login",
+    "eas:init": "eas init",
+    "eas:android:apk": "eas build --platform android --profile preview",
+    "eas:android:bundle": "eas build --platform android --profile production",
     "test": "jest --watchAll"
   },
   "jest": {
@@ -28,7 +32,6 @@
     "@react-navigation/native": "^7.0.14",
     "dayjs": "^1.11.19",
     "expo": "54.0.33",
-    "expo-audio": "~1.1.1",
     "expo-auth-session": "~7.0.10",
     "expo-blur": "~15.0.8",
     "expo-camera": "~17.0.10",
@@ -83,6 +86,7 @@
     "chalk": "^4.1.2",
     "connect": "^3.7.0",
     "depcheck": "^1.4.7",
+    "eas-cli": "^18.7.0",
     "esbuild": "0.27.2",
     "eslint": "^9.39.2",
     "eslint-formatter-compact": "^9.0.1",
