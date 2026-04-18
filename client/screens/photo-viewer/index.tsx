@@ -1,13 +1,29 @@
 import { Screen } from '@/components/Screen';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Modal, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+  Modal,
+  ActivityIndicator,
+  type ImageStyle,
+  type StyleProp,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useTranslation } from 'react-i18next';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+function ViewerVideo({ uri, style }: { uri: string; style: StyleProp<ImageStyle> }) {
+  const player = useVideoPlayer(uri);
+  return <VideoView player={player} style={style} contentFit="contain" nativeControls />;
+}
 
 export default function PhotoViewerScreen() {
   const insets = useSafeAreaInsets();
@@ -84,13 +100,8 @@ export default function PhotoViewerScreen() {
 
         {/* 图片/视频显示区 */}
         <View style={styles.mediaContainer}>
-          {isVideo ? (
-            <Video
-              source={{ uri: currentImage }}
-              style={styles.media}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-            />
+          {isVideo && currentImage ? (
+            <ViewerVideo uri={currentImage} style={styles.media} />
           ) : (
             <Image
               source={{ uri: currentImage }}

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from 'react-i18next';
 import { getBackendBaseUrl } from '@/utils/backend';
@@ -163,58 +163,43 @@ function PhotoCard({
 // 单个媒体项渲染组件（用于 PhotoViewer）
 // 由于 renderItem 使用了 key={item.id}，组件会在 item 变化时完全重新创建
 function MediaItem({ item, isActive }: { item: PhotoItem; isActive?: boolean }) {
-  const videoRef = useRef<Video>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const player = useVideoPlayer(item.url, (p) => {
+    p.loop = true;
+  });
 
-  // 监听 isActive 变化来控制播放
   useEffect(() => {
     let isMounted = true;
-    
+
     const controlVideo = async () => {
-      // 添加延迟确保视图已挂载
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      if (!isMounted || !videoRef.current) return;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      if (!isMounted) return;
 
       try {
         if (isActive) {
-          // 滑动到当前视频时自动播放
-          await videoRef.current.playAsync();
-          if (isMounted) setIsPlaying(true);
+          player.play();
         } else {
-          // 滑动离开时暂停
-          await videoRef.current.pauseAsync();
-          if (isMounted) setIsPlaying(false);
+          player.pause();
         }
-      } catch (error) {
-        // 忽略视图已卸载的错误
+      } catch {
         console.log('视频控制跳过（视图未就绪）');
       }
     };
 
-    controlVideo();
+    void controlVideo();
 
     return () => {
       isMounted = false;
     };
-  }, [isActive]);
+  }, [isActive, player]);
 
   if (item.mediaType === 'video') {
     return (
       <View style={styles.viewerSlide}>
-        <Video
-          ref={videoRef}
-          source={{ uri: item.url }}
+        <VideoView
+          player={player}
           style={styles.viewerImage}
-          resizeMode={ResizeMode.CONTAIN}
-          shouldPlay={isActive}
-          isLooping
-          useNativeControls
-          posterSource={!isPlaying ? { uri: item.url } : undefined}
-          posterStyle={styles.viewerImage}
-          onError={(error) => {
-            console.log('视频播放错误（可忽略）');
-          }}
+          contentFit="contain"
+          nativeControls
         />
       </View>
     );

@@ -1,7 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  setAudioModeAsync,
+  requestRecordingPermissionsAsync,
+} from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getBackendBaseUrl } from '@/utils/backend';
 
@@ -121,6 +126,9 @@ export default function VoiceInput({
     mimeType: 'audio/webm',
   });
   const isWebPlatform = Platform.OS === 'web';
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const audioRecorderRef = useRef(audioRecorder);
+  audioRecorderRef.current = audioRecorder;
 
   // Toast 辅助函数
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -313,6 +321,9 @@ export default function VoiceInput({
         webRecordingRef.current.stream.getTracks().forEach((track) => track.stop());
       }
       void abortDeviceSpeech();
+      void audioRecorderRef.current.stop().catch(() => {
+        /* not recording */
+      });
     };
   }, []);
 
@@ -495,31 +506,28 @@ export default function VoiceInput({
     });
   };
 
-  // ============ 移动平台录音实现 ============
-  const [nativeRecording, setNativeRecording] = useState<Audio.Recording | null>(null);
+  // ============ 移动平台录音实现（expo-audio，替代已弃用的 expo-av） ============
 
   const startNativeRecording = async () => {
     try {
       console.log('移动平台：请求麦克风权限...');
 
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
+      const perm = await requestRecordingPermissionsAsync();
+      if (!perm.granted) {
         showToast('需要麦克风权限才能录音', 'error');
         return;
       }
 
       console.log('移动平台：麦克风权限已授予');
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
 
-      setNativeRecording(recording);
       setIsRecording(true);
       setRecordingDuration(0);
 
@@ -536,7 +544,7 @@ export default function VoiceInput({
   };
 
   const stopNativeRecording = async () => {
-    if (!nativeRecording) return;
+    if (!audioRecorder.isRecording) return;
 
     console.log('移动平台：停止录音...');
 
@@ -548,12 +556,11 @@ export default function VoiceInput({
     setRecordingDuration(0);
 
     try {
-      await nativeRecording.stopAndUnloadAsync();
-      const uri = nativeRecording.getURI();
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
 
       if (!uri) {
         showToast('录音文件获取失败', 'error');
-        setNativeRecording(null);
         return;
       }
 
@@ -570,7 +577,6 @@ export default function VoiceInput({
       } catch (readErr) {
         console.error('移动平台：读取录音文件失败:', readErr);
         showToast('录音文件读取失败', 'error');
-        setNativeRecording(null);
         return;
       }
 
@@ -582,7 +588,6 @@ export default function VoiceInput({
       if (b64.length < MIN_AUDIO_SIZE) {
         console.error('移动平台：音频太小，当前:', b64.length, 'bytes，阈值:', MIN_AUDIO_SIZE, 'bytes');
         showToast('未检测到有效音频，请重试并对着麦克风说话', 'error');
-        setNativeRecording(null);
         return;
       }
 
@@ -593,8 +598,6 @@ export default function VoiceInput({
       if (!error.message?.includes('already been unloaded')) {
         showToast('处理失败，请重试', 'error');
       }
-    } finally {
-      setNativeRecording(null);
     }
   };
 
@@ -609,15 +612,14 @@ export default function VoiceInput({
     setRecordingDuration(0);
     setSpeechEngine('none');
 
-    if (nativeRecording) {
+    if (audioRecorder.isRecording) {
       try {
-        await nativeRecording.stopAndUnloadAsync();
+        await audioRecorder.stop();
       } catch (error: any) {
         console.log('停止录音时出错（忽略）:', error.message);
       }
     }
 
-    setNativeRecording(null);
     onClose();
   };
 

@@ -20,7 +20,9 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // 未配置对象存储时，upload 路由会把图片落盘到此目录并通过该 URL 对外提供（仅适合开发/演示）
 const localMemoryUploadDir = path.join(path.resolve(process.cwd(), 'data', 'local-uploads', 'memories'));
+const localVlogUploadDir = path.join(path.resolve(process.cwd(), 'data', 'local-uploads', 'vlogs'));
 app.use('/uploads/local-memories', express.static(localMemoryUploadDir));
+app.use('/uploads/local-vlogs', express.static(localVlogUploadDir));
 
 // Health check
 app.get('/api/v1/health', (req, res) => {

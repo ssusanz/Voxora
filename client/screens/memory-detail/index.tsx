@@ -1,5 +1,18 @@
 import { Screen } from '@/components/Screen';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, TextInput, Modal, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Dimensions,
+  TextInput,
+  Modal,
+  Platform,
+  type ImageStyle,
+  type StyleProp,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
@@ -20,7 +33,7 @@ import Animated, {
   Extrapolation
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 
 import EmotionMessageCard from '@/components/EmotionMessageCard';
 import GlowingCluster from '@/components/GlowingCluster';
@@ -150,6 +163,18 @@ const isVideoUrl = (url: string): boolean => {
   const lowerUrl = url.toLowerCase();
   return videoExtensions.some(ext => lowerUrl.includes(ext)) || lowerUrl.includes('video');
 };
+
+/** 照片墙视频缩略：静音、不自动播放，避免 expo-av 弃用 */
+function PhotoWallVideoThumb({ uri, style }: { uri: string; style: StyleProp<ImageStyle> }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.muted = true;
+    p.loop = false;
+  });
+  useEffect(() => {
+    player.pause();
+  }, [player, uri]);
+  return <VideoView player={player} style={style} contentFit="cover" nativeControls={false} />;
+}
 
 export default function MemoryDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -695,15 +720,7 @@ export default function MemoryDetailScreen() {
                     }}
                   >
                     {isVideo ? (
-                      <Video
-                        source={{ uri: imageUrl }}
-                        style={styles.photoWallImage}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={false}
-                        isLooping={false}
-                        useNativeControls={false}
-                        isMuted={true}
-                      />
+                      <PhotoWallVideoThumb uri={imageUrl} style={styles.photoWallImage} />
                     ) : (
                       <Image 
                         source={{ uri: imageUrl }} 
