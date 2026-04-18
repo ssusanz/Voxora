@@ -13,6 +13,10 @@
 #
 #   本脚本从仓库根 `.env` 读取该行，仅用于：**自检**、以及 **`eas build --local`** 同一会话可见。
 #
+# Bundle ID：
+#   默认 `com.anonymous.<slug>`（与 expo slug 一致，如 myapp → com.anonymous.myapp），写在 client/app.config.ts。
+#   覆盖：`export IOS_BUNDLE_IDENTIFIER=com.yourcompany.voxora` 后再执行本脚本。
+#
 # Apple 凭证：
 #   首次 iOS 构建请在 **终端** 运行本脚本并按 `eas-cli` 提示登录 Apple、选择 Team、由 EAS 管理
 #   Distribution 证书；**不必**先在 expo.dev 网页里手动上传 .p12（除非公司策略要求自管证书）。

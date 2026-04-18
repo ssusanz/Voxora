@@ -11,6 +11,14 @@ const slugAppName = projectId ? `app${projectId}` : 'myapp';
 /** `eas init` 在动态 app.config 下无法自动写入，需保留在此（可被 EAS_PROJECT_ID 覆盖） */
 const EAS_DEFAULT_PROJECT_ID = 'fc6787d7-ab8c-4e35-b55f-dd49251d1192';
 
+/**
+ * iOS Bundle ID（EAS `eas build -p ios` 必填）。须与 Apple Developer 中 App ID 一致或让 EAS 首次创建时选用。
+ * 可用环境变量覆盖：`IOS_BUNDLE_IDENTIFIER=com.company.app`
+ */
+const iosBundleIdentifier =
+  (typeof process.env.IOS_BUNDLE_IDENTIFIER === 'string' && process.env.IOS_BUNDLE_IDENTIFIER.trim()) ||
+  `com.anonymous.${slugAppName.replace(/[^a-zA-Z0-9]/g, '')}`;
+
 export default ({ config }: ConfigContext): ExpoConfig => {
   const baseExtra =
     config.extra && typeof config.extra === 'object' ? (config.extra as Record<string, unknown>) : {};
@@ -32,7 +40,17 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": iosBundleIdentifier,
+      /**
+       * 与 Android usesCleartextTraffic 对应：当前后端为 http 时避免 ATS 拦截。
+       * 全站 HTTPS 后可改为按域名 NSExceptionDomains 或移除此项。
+       */
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+        },
+      },
     },
     "android": {
       "adaptiveIcon": {
