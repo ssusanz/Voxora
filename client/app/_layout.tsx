@@ -71,6 +71,14 @@ function RootNavigator() {
     [i18n.language, t]
   );
 
+  const meetFutureDetailOptions = useMemo(
+    () => ({
+      title: t('home.futureDetailTitle'),
+      animation: 'slide_from_right' as const,
+    }),
+    [i18n.language, t]
+  );
+
   return (
     <Provider>
       <Stack screenOptions={stackScreenOptions}>
@@ -80,6 +88,7 @@ function RootNavigator() {
         <Stack.Screen name="nfc" options={nfcOptions} />
         <Stack.Screen name="vlog" options={vlogOptions} />
         <Stack.Screen name="photo-viewer" options={photoViewerOptions} />
+        <Stack.Screen name="meet-future-detail" options={meetFutureDetailOptions} />
       </Stack>
       <Toast />
     </Provider>

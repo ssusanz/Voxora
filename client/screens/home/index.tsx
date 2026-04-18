@@ -28,6 +28,7 @@ import { formatDateLocalized } from '@/utils/localeFormat';
 import { useMemoryDisplayText } from '@/hooks/useMemoryDisplayText';
 import { useToast } from '@/hooks/useToast';
 import { InlineDeleteReveal } from '@/components/InlineDeleteReveal';
+import { MeetFuturePanel } from '@/components/MeetFuturePanel';
 import { deleteMemoryById } from '@/utils/memoryRemote';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -169,6 +170,8 @@ export default function HomeScreen() {
   const [alerts] = useState<Alert[]>(mockAlerts);
   const [showEmotionPicker, setShowEmotionPicker] = useState(false);
   const [selectedEmotion, setSelectedEmotion] = useState<EmotionType | null>(null);
+  /** 首页中段：时光长廊（回忆流） / 遇见未来（家庭规划白板） */
+  const [corridorTab, setCorridorTab] = useState<'memories' | 'future'>('memories');
 
   // 从 API 获取回忆数据
   const fetchMemories = useCallback(async () => {
@@ -500,24 +503,116 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 时间线标题 */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{String(t('home.title'))}</Text>
-        <Text style={styles.sectionSubtitle}>{String(t('home.subtitle'))}</Text>
+      {/* 时光长廊 / 遇见未来 — 双卡片切换 */}
+      <View style={styles.corridorSwitchRow}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setCorridorTab('memories')}
+          style={[styles.corridorSwitchCard, corridorTab === 'memories' && styles.corridorSwitchCardActive]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: corridorTab === 'memories' }}
+        >
+          <LinearGradient
+            colors={
+              corridorTab === 'memories'
+                ? ['#D45A3A', '#F0A060', '#FFD9B8']
+                : ['#FFF8F3', '#FFEDE3']
+            }
+            start={{ x: 0, y: 1 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.corridorSwitchGrad}
+          >
+            <Ionicons
+              name="images"
+              size={22}
+              color={corridorTab === 'memories' ? '#FFF' : '#C45C28'}
+            />
+            <Text
+              style={[
+                styles.corridorSwitchTitle,
+                corridorTab === 'memories' ? styles.corridorSwitchTitleOn : styles.corridorSwitchTitleDuskIdle,
+              ]}
+            >
+              {t('home.corridorCardTitle')}
+            </Text>
+            <Text
+              style={[
+                styles.corridorSwitchHint,
+                corridorTab === 'memories' ? styles.corridorSwitchHintOn : styles.corridorSwitchHintDuskIdle,
+              ]}
+              numberOfLines={2}
+            >
+              {t('home.corridorCardHint')}
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setCorridorTab('future')}
+          style={[styles.corridorSwitchCard, corridorTab === 'future' && styles.corridorSwitchCardActiveFuture]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: corridorTab === 'future' }}
+        >
+          <LinearGradient
+            colors={
+              corridorTab === 'future'
+                ? ['#2E7D32', '#52B36A', '#A8E6B8']
+                : ['#EEF8F0', '#F4FBF6']
+            }
+            start={{ x: 0, y: 1 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.corridorSwitchGrad}
+          >
+            <Ionicons
+              name="rocket"
+              size={22}
+              color={corridorTab === 'future' ? '#FFF' : '#2E7D32'}
+            />
+            <Text
+              style={[
+                styles.corridorSwitchTitle,
+                corridorTab === 'future' ? styles.corridorSwitchTitleOn : styles.corridorSwitchTitleGreenIdle,
+              ]}
+            >
+              {t('home.futureCardTitle')}
+            </Text>
+            <Text
+              style={[
+                styles.corridorSwitchHint,
+                corridorTab === 'future' ? styles.corridorSwitchHintOn : styles.corridorSwitchHintGreenIdle,
+              ]}
+              numberOfLines={2}
+            >
+              {t('home.futureCardHint')}
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
 
-      {/* 记忆流 */}
-      <FlatList
-        style={styles.timelineList}
-        data={memories}
-        extraData={i18n.language}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListFooterComponent={timelineListFooter}
-        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-      />
+      <View style={styles.corridorHintRow}>
+        <Text style={styles.corridorHintText}>
+          {corridorTab === 'memories' ? t('home.subtitle') : t('home.futureMicroHint')}
+        </Text>
+      </View>
+
+      <View style={styles.corridorBody}>
+        {corridorTab === 'memories' ? (
+          <FlatList
+            style={styles.timelineList}
+            data={memories}
+            extraData={[i18n.language, corridorTab]}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            ListFooterComponent={timelineListFooter}
+            ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          />
+        ) : (
+          <MeetFuturePanel bottomSpacerHeight={timelineFooterHeight} />
+        )}
+      </View>
 
       {/* 宠物悬浮组件 */}
       <PetOverlay />
@@ -600,19 +695,74 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFF',
   },
-  sectionHeader: {
+  corridorSwitchRow: {
+    flexDirection: 'row',
     paddingHorizontal: 20,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 10,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
+  corridorSwitchCard: {
+    flex: 1,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  sectionSubtitle: {
+  corridorSwitchCardActive: {
+    borderColor: 'rgba(200, 100, 55, 0.55)',
+  },
+  corridorSwitchCardActiveFuture: {
+    borderColor: 'rgba(46, 125, 50, 0.5)',
+  },
+  corridorSwitchGrad: {
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    minHeight: 108,
+    justifyContent: 'flex-start',
+    gap: 6,
+  },
+  corridorSwitchTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  corridorSwitchTitleOn: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.12)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  corridorSwitchTitleDuskIdle: {
+    color: '#6B3F2E',
+  },
+  corridorSwitchTitleGreenIdle: {
+    color: '#1B5E20',
+  },
+  corridorSwitchHint: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+  },
+  corridorSwitchHintOn: {
+    color: 'rgba(255,255,255,0.94)',
+  },
+  corridorSwitchHintDuskIdle: {
+    color: '#8A5E4A',
+  },
+  corridorSwitchHintGreenIdle: {
+    color: '#33691E',
+  },
+  corridorHintRow: {
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  corridorHintText: {
     fontSize: 13,
     color: '#999',
-    marginTop: 4,
+    lineHeight: 19,
+  },
+  corridorBody: {
+    flex: 1,
   },
   timelineList: {
     flex: 1,

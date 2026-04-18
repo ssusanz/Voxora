@@ -12,6 +12,7 @@ import vlogsRouter from "./routes/vlogs";
 import voiceRouter from "./routes/voice";
 import uploadRouter from "./routes/upload";
 import videoRouter from "./routes/video";
+import futurePlansRouter from "./routes/future-plans";
 
 const app = express();
 const port = process.env.PORT || 9091;
@@ -52,6 +53,7 @@ app.use('/api/v1/vlogs', vlogsRouter);
 app.use('/api/v1/voice', voiceRouter);
 app.use('/api/v1/upload', uploadRouter);
 app.use('/api/v1/video', videoRouter);
+app.use('/api/v1/future-plans', futurePlansRouter);
 
 // User routes (简化版)
 app.get('/api/v1/users/me', (req, res) => {

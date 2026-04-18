@@ -125,3 +125,68 @@ export async function summarizeMemoryWithGemini(memory: Record<string, unknown>)
     clearTimeout(timer);
   }
 }
+
+/**
+ * 任意单段提示词生成（如「遇见未来」家庭讨论小结），与回忆总结共用同一 API Key / model。
+ */
+export async function geminiGenerateFreeform(userPrompt: string): Promise<string> {
+  const apiKey = readGeminiApiKey();
+  if (!apiKey) {
+    throw new Error('未配置 GEMINI_API_KEY（或 GOOGLE_GENERATIVE_AI_API_KEY）');
+  }
+
+  const model = trimEnvValue(process.env.GEMINI_MODEL) || 'gemini-2.0-flash';
+  const timeoutRaw = trimEnvValue(process.env.GEMINI_TIMEOUT_MS);
+  const timeoutMs = Math.min(
+    Math.max(Number(timeoutRaw) || 90_000, 5_000),
+    300_000
+  );
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          temperature: 0.55,
+          maxOutputTokens: 1536,
+        },
+      }),
+    });
+
+    const rawText = await res.text();
+    let json: GenerateContentResponse;
+    try {
+      json = JSON.parse(rawText) as GenerateContentResponse;
+    } catch {
+      throw new Error(`Gemini 返回非 JSON（HTTP ${res.status}）：${rawText.slice(0, 200)}`);
+    }
+
+    if (!res.ok) {
+      const msg =
+        (typeof json.error?.message === 'string' && json.error.message) ||
+        rawText.slice(0, 400) ||
+        `Gemini HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+
+    const candidate = json.candidates?.[0];
+    const text = joinCandidateText(candidate);
+    if (!text.trim()) {
+      const reason = candidate?.finishReason;
+      throw new Error(
+        reason ? `Gemini 无有效输出（finishReason: ${reason}）` : 'Gemini 返回内容为空'
+      );
+    }
+    return text.trim();
+  } finally {
+    clearTimeout(timer);
+  }
+}
