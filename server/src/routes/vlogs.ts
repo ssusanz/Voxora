@@ -122,6 +122,58 @@ router.post('/generate', async (req, res) => {
   }
 });
 
+/** 将已生成的视频 URL 写入 vlogs 表（用于生成成功但首次入库失败时的补存） */
+router.post('/', async (req, res) => {
+  try {
+    const { videoUrl, title, memoryIds, userId, familyId } = req.body as {
+      videoUrl?: unknown;
+      title?: string;
+      memoryIds?: unknown;
+      userId?: string;
+      familyId?: string;
+    };
+
+    if (typeof videoUrl !== 'string' || !videoUrl.trim()) {
+      return res.status(400).json({ error: '缺少有效的 videoUrl' });
+    }
+
+    const ids = Array.isArray(memoryIds)
+      ? memoryIds.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      : [];
+
+    const insertRow = {
+      title: (title && String(title).trim()) || '我的回忆 Vlog',
+      video_url: videoUrl.trim(),
+      memory_ids: ids.length > 0 ? ids : [],
+      user_id: userId || 'user_1',
+      family_id: familyId || 'family_1',
+    };
+
+    const client = getSupabaseClient();
+    const { data: vlogData, error: insertError } = await client
+      .from('vlogs')
+      .insert(insertRow)
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('手动保存 Vlog 失败:', insertError);
+      return res.status(500).json({ error: insertError.message || '保存 Vlog 失败' });
+    }
+
+    res.status(201).json({
+      success: true,
+      id: vlogData.id,
+      title: vlogData.title,
+      videoUrl: vlogData.video_url,
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '保存 Vlog 失败';
+    console.error('保存 Vlog 失败:', e);
+    res.status(500).json({ error: msg });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const { familyId, page = 1, limit = 20 } = req.query;

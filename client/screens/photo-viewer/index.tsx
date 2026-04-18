@@ -6,19 +6,32 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
-  Modal,
-  ActivityIndicator,
+  Pressable,
   type ImageStyle,
   type StyleProp,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useTranslation } from 'react-i18next';
+import { useToast } from '@/hooks/useToast';
+import { InlineDeleteReveal } from '@/components/InlineDeleteReveal';
+import { removeMediaUrlFromMemory } from '@/utils/memoryRemote';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+function parseImagesParam(json?: string): string[] {
+  try {
+    const raw = json ? JSON.parse(json) : [];
+    return Array.isArray(raw)
+      ? raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 function ViewerVideo({ uri, style }: { uri: string; style: StyleProp<ImageStyle> }) {
   const player = useVideoPlayer(uri);
@@ -28,36 +41,40 @@ function ViewerVideo({ uri, style }: { uri: string; style: StyleProp<ImageStyle>
 export default function PhotoViewerScreen() {
   const insets = useSafeAreaInsets();
   const router = useSafeRouter();
-  const params = useSafeSearchParams<{ images: string; initialIndex: string }>();
+  const params = useSafeSearchParams<{ images?: string; initialIndex?: string; memoryId?: string }>();
   const { t } = useTranslation();
+  const { showSuccess, showError } = useToast();
 
+  const parsed = useMemo(() => parseImagesParam(params.images), [params.images]);
+  const [slides, setSlides] = useState<string[]>(() => parsed);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const indexInitialized = useRef(false);
 
-  // 解析图片列表
-  let imageList: string[] = [];
-  try {
-    imageList = params.images ? JSON.parse(params.images) : [];
-  } catch (error) {
-    console.error('解析图片列表失败:', error);
-  }
+  useEffect(() => {
+    setSlides(parsed);
+  }, [parsed]);
 
-  const initialIndex = params.initialIndex ? parseInt(params.initialIndex, 10) : 0;
+  useEffect(() => {
+    if (indexInitialized.current || slides.length === 0) return;
+    const raw = params.initialIndex !== undefined ? String(params.initialIndex) : '0';
+    const idx = parseInt(raw, 10);
+    const safe = Number.isFinite(idx) ? idx : 0;
+    setCurrentIndex(Math.min(Math.max(0, safe), slides.length - 1));
+    indexInitialized.current = true;
+  }, [slides.length, params.initialIndex]);
 
-  // 初始化索引
-  if (currentIndex === 0 && imageList.length > 0 && initialIndex < imageList.length) {
-    setCurrentIndex(initialIndex);
-  }
+  const memoryId = typeof params.memoryId === 'string' ? params.memoryId.trim() : '';
 
-  const currentImage = imageList[currentIndex];
-  const isVideo = currentImage?.toLowerCase().endsWith('.mp4') ||
-                  currentImage?.toLowerCase().endsWith('.mov');
+  const currentImage = slides[currentIndex];
+  const isVideo =
+    currentImage?.toLowerCase().endsWith('.mp4') || currentImage?.toLowerCase().endsWith('.mov');
 
   const handleGoBack = () => {
     router.back();
   };
 
   const handleNext = () => {
-    if (currentIndex < imageList.length - 1) {
+    if (currentIndex < slides.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
   };
@@ -68,7 +85,26 @@ export default function PhotoViewerScreen() {
     }
   };
 
-  if (!imageList || imageList.length === 0) {
+  const runDeleteCurrentSlide = useCallback(async () => {
+    if (!memoryId || !currentImage) return;
+    const res = await removeMediaUrlFromMemory(memoryId, currentImage);
+    if (res === 'error') {
+      showError(t('common.deleteFailed'));
+      return;
+    }
+    if (res === 'memory_deleted') {
+      showSuccess(t('common.deleteSuccess'));
+      router.back();
+      return;
+    }
+    const removedUrl = currentImage;
+    const next = slides.filter((u) => u !== removedUrl);
+    setSlides(next);
+    setCurrentIndex((i) => (next.length === 0 ? 0 : Math.min(i, next.length - 1)));
+    showSuccess(t('common.deleteSuccess'));
+  }, [memoryId, currentImage, t, router, showError, showSuccess]);
+
+  if (!slides || slides.length === 0) {
     return (
       <Screen safeAreaEdges={['top', 'bottom']} style={styles.screen}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -93,26 +129,35 @@ export default function PhotoViewerScreen() {
             <Ionicons name="close" size={28} color="#FFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            {currentIndex + 1} / {imageList.length}
+            {currentIndex + 1} / {slides.length}
           </Text>
           <View style={styles.navButton} />
         </View>
 
-        {/* 图片/视频显示区 */}
-        <View style={styles.mediaContainer}>
-          {isVideo && currentImage ? (
-            <ViewerVideo uri={currentImage} style={styles.media} />
-          ) : (
-            <Image
-              source={{ uri: currentImage }}
-              style={styles.media}
-              resizeMode="contain"
-            />
+        {/* 图片/视频显示区：有 memoryId 时长按出现下方删除条 */}
+        <InlineDeleteReveal
+          style={styles.mediaContainer}
+          onDelete={runDeleteCurrentSlide}
+          deleteEnabled={!!memoryId}
+          immersive
+        >
+          {(openBar) => (
+            <Pressable
+              style={styles.mediaPressable}
+              onLongPress={memoryId ? openBar : undefined}
+              delayLongPress={450}
+            >
+              {isVideo && currentImage ? (
+                <ViewerVideo uri={currentImage} style={styles.media} />
+              ) : (
+                <Image source={{ uri: currentImage }} style={styles.media} resizeMode="contain" />
+              )}
+            </Pressable>
           )}
-        </View>
+        </InlineDeleteReveal>
 
         {/* 底部导航按钮 */}
-        {imageList.length > 1 && (
+        {slides.length > 1 && (
           <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
             <TouchableOpacity
               onPress={handlePrev}
@@ -127,13 +172,22 @@ export default function PhotoViewerScreen() {
 
             <TouchableOpacity
               onPress={handleNext}
-              style={[styles.navButton, currentIndex === imageList.length - 1 && styles.navButtonDisabled]}
-              disabled={currentIndex === imageList.length - 1}
+              style={[styles.navButton, currentIndex === slides.length - 1 && styles.navButtonDisabled]}
+              disabled={currentIndex === slides.length - 1}
             >
-              <Text style={[styles.navButtonText, currentIndex === imageList.length - 1 && styles.navButtonTextDisabled]}>
+              <Text
+                style={[
+                  styles.navButtonText,
+                  currentIndex === slides.length - 1 && styles.navButtonTextDisabled,
+                ]}
+              >
                 {t('common.next')}
               </Text>
-              <Ionicons name="chevron-forward" size={32} color={currentIndex === imageList.length - 1 ? '#666' : '#FFF'} />
+              <Ionicons
+                name="chevron-forward"
+                size={32}
+                color={currentIndex === slides.length - 1 ? '#666' : '#FFF'}
+              />
             </TouchableOpacity>
           </View>
         )}
@@ -172,6 +226,12 @@ const styles = StyleSheet.create({
   },
   mediaContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaPressable: {
+    flex: 1,
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -1,15 +1,20 @@
 import { Screen } from '@/components/Screen';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions, Image, ActivityIndicator, FlatList, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions, Image, ActivityIndicator, FlatList, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import * as ImagePicker from 'expo-image-picker';
+import { File as FsFile, Paths } from 'expo-file-system';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from 'react-i18next';
 import { getBackendBaseUrl } from '@/utils/backend';
 import { formatDateLocalized } from '@/utils/localeFormat';
 import { useMemoryDisplayText } from '@/hooks/useMemoryDisplayText';
+import { createFormDataFile } from '@/utils';
+import { InlineDeleteReveal } from '@/components/InlineDeleteReveal';
+import { removeMediaUrlFromMemory } from '@/utils/memoryRemote';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -61,6 +66,15 @@ const isVideoUrl = (url: string): boolean => {
   return videoExtensions.some(ext => lowerUrl.includes(ext)) || lowerUrl.includes('video');
 };
 
+/** 瀑布流卡片：展示该回忆「最近」的一张图（随拍会追加在 images 末尾） */
+function pickMomentGalleryTile(photos: PhotoItem[]): PhotoItem | null {
+  if (!photos.length) return null;
+  for (let i = photos.length - 1; i >= 0; i--) {
+    if (photos[i].mediaType === 'image') return photos[i];
+  }
+  return photos[photos.length - 1] ?? null;
+}
+
 function pickAwakenImageUrl(photos: PhotoItem[], index: number): string | null {
   if (!photos || photos.length === 0) return null;
   const clamped = Math.max(0, Math.min(index, photos.length - 1));
@@ -96,13 +110,15 @@ function pickAwakenImageUrl(photos: PhotoItem[], index: number): string | null {
 }
 
 // 照片卡片组件（手账风格拍立得样式）
-function PhotoCard({ 
-  item, 
+function PhotoCard({
+  item,
   onPress,
-  cardStyle 
-}: { 
-  item: PhotoItem; 
+  onDelete,
+  cardStyle,
+}: {
+  item: PhotoItem;
   onPress: () => void;
+  onDelete: (photo: PhotoItem) => void | Promise<void>;
   cardStyle: any;
 }) {
   // 使用固定的旋转角度和阴影颜色，根据 item.id 的字符码生成
@@ -117,46 +133,55 @@ function PhotoCard({
   }, [item.id]);
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
-      style={[
-        cardStyle,
-        {
-          transform: [{ rotate: `${rotation}deg` }],
-          shadowColor: shadowColor,
-        },
-      ]}
-    >
-      <View style={styles.photoCardInner}>
-        {/* 拍立得照片框 */}
-        <View style={styles.polaroidContainer}>
-          <Image
-            source={{ uri: item.url }}
-            style={[styles.photoImage, { aspectRatio: item.aspectRatio }]}
-            resizeMode="cover"
-          />
-          {/* 视频标识 */}
-          {item.mediaType === 'video' && (
-            <View style={styles.videoIndicator}>
-              <Ionicons name="play-circle" size={24} color="#FFF" />
+    <InlineDeleteReveal onDelete={() => onDelete(item)}>
+      {(openBar) => (
+        <View
+          style={[
+            cardStyle,
+            {
+              transform: [{ rotate: `${rotation}deg` }],
+              shadowColor: shadowColor,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.12,
+              shadowRadius: 6,
+              elevation: 3,
+            },
+          ]}
+        >
+          <Pressable
+            onPress={onPress}
+            onLongPress={openBar}
+            delayLongPress={450}
+            style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
+          >
+            <View style={styles.photoCardInner}>
+              <View style={styles.polaroidContainer}>
+                <Image
+                  source={{ uri: item.url }}
+                  style={[styles.photoImage, { aspectRatio: item.aspectRatio }]}
+                  resizeMode="cover"
+                />
+                {item.mediaType === 'video' && (
+                  <View style={styles.videoIndicator}>
+                    <Ionicons name="play-circle" size={24} color="#FFF" />
+                  </View>
+                )}
+                <View style={styles.polaroidFooter}>
+                  <View style={styles.polaroidDots}>
+                    <View style={[styles.dot, { backgroundColor: '#FF7B8A' }]} />
+                    <View style={[styles.dot, { backgroundColor: '#FFD700' }]} />
+                    <View style={[styles.dot, { backgroundColor: '#7C6AFF' }]} />
+                  </View>
+                </View>
+              </View>
+              <View style={styles.dateTag}>
+                <Text style={styles.dateTagText}>{item.date}</Text>
+              </View>
             </View>
-          )}
-          {/* 照片底部装饰 */}
-          <View style={styles.polaroidFooter}>
-            <View style={styles.polaroidDots}>
-              <View style={[styles.dot, { backgroundColor: '#FF7B8A' }]} />
-              <View style={[styles.dot, { backgroundColor: '#FFD700' }]} />
-              <View style={[styles.dot, { backgroundColor: '#7C6AFF' }]} />
-            </View>
-          </View>
+          </Pressable>
         </View>
-        {/* 日期标签 */}
-        <View style={styles.dateTag}>
-          <Text style={styles.dateTagText}>{item.date}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      )}
+    </InlineDeleteReveal>
   );
 }
 
@@ -482,8 +507,12 @@ function PhotoViewer({
 
 export default function MomentsScreen() {
   const { t, i18n } = useTranslation();
+  const { showSuccess, showError, showInfo } = useToast();
   const [memories, setMemories] = useState<MemoryWithPhotos[]>([]);
+  /** 列表接口按时间倒序时的第一条回忆 id，用于把随拍追加进「最新」回忆 */
+  const [latestMemoryId, setLatestMemoryId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCapturing, setIsCapturing] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<MemoryWithPhotos | null>(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [showViewer, setShowViewer] = useState(false);
@@ -505,6 +534,10 @@ export default function MomentsScreen() {
        */
       const response = await fetch(`${getBackendBaseUrl()}/api/v1/memories?limit=100`);
       const result = await response.json();
+
+      const rows = Array.isArray(result.data) ? result.data : [];
+      const first = rows[0] as { id?: unknown } | undefined;
+      setLatestMemoryId(typeof first?.id === 'string' && first.id.trim() ? first.id.trim() : null);
 
       if (result.data) {
         // 按回忆分组保存所有照片
@@ -562,9 +595,13 @@ export default function MomentsScreen() {
         });
 
         setMemories(Array.from(memoriesMap.values()));
+      } else {
+        setMemories([]);
       }
     } catch (error) {
       console.error('获取照片失败:', error);
+      setMemories([]);
+      setLatestMemoryId(null);
     } finally {
       setIsLoading(false);
     }
@@ -577,14 +614,161 @@ export default function MomentsScreen() {
     }, [fetchPhotos])
   );
 
+  const handleCaptureAndSave = useCallback(async () => {
+    if (isCapturing) return;
+    if (Platform.OS === 'web') {
+      showInfo(t('moments.cameraWebUnsupported'));
+      return;
+    }
+    setIsCapturing(true);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        showError(t('moments.cameraPermissionDenied'));
+        return;
+      }
+
+      const pick = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+      });
+      if (pick.canceled || !pick.assets?.[0]?.uri) return;
+
+      const asset = pick.assets[0];
+      const uri = asset.uri;
+      const mime =
+        typeof asset.mimeType === 'string' && asset.mimeType.trim() ? asset.mimeType.trim() : 'image/jpeg';
+      const ext = mime.includes('png') ? 'png' : 'jpg';
+      const stagedName = `moment_${Date.now()}.${ext}`;
+      let uploadUri = uri;
+      try {
+        const source = new FsFile(uri);
+        const dest = new FsFile(Paths.cache, stagedName);
+        source.copy(dest);
+        uploadUri = dest.uri;
+      } catch (copyErr) {
+        console.warn('[moments] 暂存拍摄文件失败，将使用原始 URI', copyErr);
+      }
+      const filePart = await createFormDataFile(uploadUri, stagedName, mime);
+      const form = new FormData();
+      form.append('file', filePart as unknown as Blob);
+
+      const upRes = await fetch(`${getBackendBaseUrl()}/api/v1/upload/image`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!upRes.ok) {
+        const errBody = (await upRes.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errBody.error || t('moments.captureUploadFailed'));
+      }
+      const upJson = (await upRes.json()) as { url?: string };
+      const uploadedUrl = typeof upJson.url === 'string' ? upJson.url.trim() : '';
+      if (!uploadedUrl) {
+        throw new Error(t('moments.captureUploadFailed'));
+      }
+
+      if (uploadUri !== uri) {
+        try {
+          new FsFile(uploadUri).delete();
+        } catch {
+          /* temp file already gone or unreadable */
+        }
+      }
+
+      const baseUrl = getBackendBaseUrl();
+      let merged = false;
+      if (latestMemoryId) {
+        const detailRes = await fetch(`${baseUrl}/api/v1/memories/${encodeURIComponent(latestMemoryId)}`);
+        if (detailRes.ok) {
+          const d = (await detailRes.json()) as Record<string, unknown>;
+          const existingRaw = d.images;
+          const existing = Array.isArray(existingRaw)
+            ? existingRaw.filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+            : [];
+          const nextImages = [...existing, uploadedUrl];
+          const putBody = {
+            title: String(d.title ?? t('moments.captureMemoryTitle')),
+            date: String(d.date ?? new Date().toISOString().split('T')[0]),
+            location: String(d.location ?? ''),
+            weather: String(d.weather ?? 'sunny'),
+            mood: String(d.mood ?? 'happy'),
+            images: nextImages,
+            userId: typeof d.user_id === 'string' ? d.user_id : 'user_1',
+            familyId: typeof d.family_id === 'string' ? d.family_id : 'family_1',
+            isSealed: Boolean(d.is_sealed),
+            unlockDate: d.unlock_date ?? null,
+            coverImage: String(d.cover_image || nextImages[0] || ''),
+          };
+          const putRes = await fetch(`${baseUrl}/api/v1/memories/${encodeURIComponent(latestMemoryId)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(putBody),
+          });
+          merged = putRes.ok;
+          if (!putRes.ok) {
+            console.warn('[moments] 追加照片到回忆失败', await putRes.text());
+          }
+        }
+      }
+
+      if (!merged) {
+        const today = new Date().toISOString().split('T')[0];
+        const postRes = await fetch(`${baseUrl}/api/v1/memories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: t('moments.captureMemoryTitle'),
+            date: today,
+            location: '',
+            weather: 'sunny',
+            mood: 'happy',
+            images: [uploadedUrl],
+            userId: 'user_1',
+            familyId: 'family_1',
+            isSealed: false,
+            unlockDate: null,
+          }),
+        });
+        if (!postRes.ok) {
+          const errBody = (await postRes.json().catch(() => ({}))) as { error?: string };
+          throw new Error(errBody.error || t('moments.captureFailed'));
+        }
+      }
+
+      await fetchPhotos();
+      showSuccess(t('moments.captureSaved'));
+    } catch (e) {
+      console.error('[moments] 相机保存失败:', e);
+      const isNetworkFail =
+        e instanceof TypeError &&
+        typeof e.message === 'string' &&
+        e.message.includes('Network request failed');
+      showError(
+        isNetworkFail
+          ? t('moments.captureNetworkHint')
+          : e instanceof Error
+            ? e.message
+            : t('moments.captureFailed')
+      );
+    } finally {
+      setIsCapturing(false);
+    }
+  }, [
+    isCapturing,
+    latestMemoryId,
+    fetchPhotos,
+    t,
+    showError,
+    showInfo,
+    showSuccess,
+  ]);
+
   // 将回忆列表转换为照片列表用于瀑布流展示
   const photoList = useMemo(() => {
     const list: PhotoItem[] = [];
     memories.forEach(memory => {
-      // 只取每个回忆的第一张照片用于瀑布流展示
-      if (memory.photos.length > 0) {
-        list.push(memory.photos[0]);
-      }
+      const tile = pickMomentGalleryTile(memory.photos);
+      if (tile) list.push(tile);
     });
     return list;
   }, [memories]);
@@ -616,6 +800,21 @@ export default function MomentsScreen() {
     }
   };
 
+  const handleDeleteMomentPhoto = useCallback(
+    async (photo: PhotoItem) => {
+      const result = await removeMediaUrlFromMemory(photo.memoryId, photo.url);
+      if (result === 'error') {
+        showError(t('common.deleteFailed'));
+        return;
+      }
+      setShowViewer(false);
+      setSelectedMemory(null);
+      await fetchPhotos();
+      showSuccess(t('common.deleteSuccess'));
+    },
+    [t, fetchPhotos, showError, showSuccess]
+  );
+
   return (
     <Screen safeAreaEdges={['top']} style={styles.screen}>
       {/* 顶部标题 */}
@@ -624,9 +823,19 @@ export default function MomentsScreen() {
           <Text style={styles.title}>{t('moments.title')}</Text>
           <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
         </View>
-        <View style={styles.headerIcon}>
-          <Ionicons name="camera" size={22} color="#7C6AFF" />
-        </View>
+        <TouchableOpacity
+          style={[styles.headerIcon, isCapturing && styles.headerIconDisabled]}
+          onPress={() => void handleCaptureAndSave()}
+          disabled={isCapturing}
+          accessibilityRole="button"
+          accessibilityLabel={t('moments.takePhoto')}
+        >
+          {isCapturing ? (
+            <ActivityIndicator size="small" color="#7C6AFF" />
+          ) : (
+            <Ionicons name="camera" size={22} color="#7C6AFF" />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* 装饰元素 */}
@@ -666,6 +875,7 @@ export default function MomentsScreen() {
                     key={item.id}
                     item={item}
                     onPress={() => handlePhotoPress(item)}
+                    onDelete={handleDeleteMomentPhoto}
                     cardStyle={{ width: COLUMN_WIDTH }}
                   />
                 ))}
@@ -720,6 +930,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(124, 106, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerIconDisabled: {
+    opacity: 0.6,
   },
   decoration: {
     position: 'absolute',

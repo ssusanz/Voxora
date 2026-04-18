@@ -25,7 +25,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     "name": appName,
     "slug": slugAppName,
-    "version": "1.0.2",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -39,7 +39,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": `com.anonymous.x${projectId || '0'}`
+      "package": `com.anonymous.x${projectId || '0'}`,
+      /** 允许 http 明文 API（局域网 / 公网 IP 无 TLS 时）；上架生产若已全站 https 可再改为 false */
+      // @ts-expect-error Expo prebuild 会写入 manifest；@expo/config-types 可能未收录
+      usesCleartextTraffic: true,
     },
     "web": {
       "bundler": "metro",
@@ -89,7 +92,20 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         {
           microphonePermission: `${appName} needs the microphone to capture your voice for memories.`,
           speechRecognitionPermission: `${appName} transcribes speech on your device (no region-locked cloud ASR).`,
-          androidSpeechServicePackages: ["com.google.android.googlequicksearchbox"],
+          /** quicksearchbox：传统云端；as：Android System Intelligence，端侧识别常用（Pixel） */
+          androidSpeechServicePackages: [
+            'com.google.android.googlequicksearchbox',
+            'com.google.android.as',
+          ],
+        },
+      ],
+      /** 与 android.usesCleartextTraffic 双保险：EAS 预构建写入 Gradle，避免 OkHttp 明文 http 被拒 */
+      [
+        'expo-build-properties',
+        {
+          android: {
+            usesCleartextTraffic: true,
+          },
         },
       ],
     ],
@@ -98,6 +114,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     "extra": {
       ...baseExtra,
+      /** 与 EXPO_PUBLIC_BACKEND_BASE_URL 同步写入，便于 Constants.expoConfig.extra 在独立包内读取 */
+      backendBaseUrl:
+        (typeof process.env.EXPO_PUBLIC_BACKEND_BASE_URL === 'string' &&
+          process.env.EXPO_PUBLIC_BACKEND_BASE_URL.trim()) ||
+        '',
       eas: {
         ...baseEas,
         projectId: easProjectId,

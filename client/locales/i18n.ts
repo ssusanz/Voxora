@@ -22,7 +22,9 @@ const zhCN = {
     "previous": "上一张",
     "next": "下一张",
     "seconds": "秒",
-    "photoViewer": "图片查看器"
+    "photoViewer": "图片查看器",
+    "deleteSuccess": "已删除",
+    "deleteFailed": "删除失败，请重试"
   },
   "tab": {
     "home": "首页",
@@ -32,10 +34,16 @@ const zhCN = {
     "profile": "我的",
     "addVoiceLongPressHint": "长按可语音说出指令，例如「我要增加一个记忆」",
     "voiceCommandTitle": "语音指令",
-    "voiceCommandSubtitle": "说出想去的位置，例如「我要增加一个记忆」「打开瞬间」",
-    "voiceCommandUnknown": "未识别指令。可尝试：增加记忆、Vlog、瞬间、家庭、首页、我的",
+    "voiceCommandSubtitle": "例如「增加记忆」「找到去公园的记忆」「为生日聚会生成 vlog」「打开瞬间」",
+    "voiceCommandUnknown": "未识别指令。可尝试：增加记忆、找到某段记忆、为某记忆生成 Vlog、Vlog、瞬间、家庭、首页、我的",
     "voiceOpenAddMemory": "正在打开新增回忆",
     "voiceOpenVlog": "正在打开 Vlog",
+    "voiceOpenFindMemory": "正在打开该回忆",
+    "voiceOpenVlogForMemory": "正在打开 Vlog（已选中该回忆）",
+    "voiceMemoryNotFound": "未找到匹配的回忆，请说得更具体一些",
+    "voiceMemoryAmbiguous": "找到多条相似回忆，请说得更具体",
+    "voiceMemoryQueryEmpty": "请说出回忆名称或关键词",
+    "voiceMemoryLoadFailed": "加载回忆列表失败，请稍后重试",
     "voiceOpenMoments": "正在打开瞬间",
     "voiceOpenFamily": "正在打开家庭",
     "voiceOpenHome": "正在返回首页",
@@ -77,7 +85,7 @@ const zhCN = {
     "saveFailed": "保存失败，请稍后重试"
   },
   "home": {
-    "title": "回忆",
+    "title": "时光长廊",
     "subtitle": "记录每一个温暖瞬间",
     "recentMemories": "最近回忆",
     "quickMood": "快速心情",
@@ -100,7 +108,8 @@ const zhCN = {
     "generating": "正在生成...",
     "recordMood": "记录心情",
     "shareToFamily": "分享到家庭",
-    "shareSuccess": "已分享到家庭空间"
+    "shareSuccess": "已分享到家庭空间",
+    "deleteMemoryMessage": "将删除这条回忆（含全部照片与心情记录），且不可恢复。"
   },
   "family": {
     "title": "家庭空间",
@@ -135,13 +144,22 @@ const zhCN = {
     "title": "瞬间",
     "empty": "暂无瞬间",
     "startCapturing": "开始捕捉美好瞬间吧",
+    "cameraPermissionDenied": "需要相机权限才能拍摄",
+    "cameraWebUnsupported": "网页版请使用手机 App 拍摄，或使用相册上传",
+    "captureSaved": "照片已保存",
+    "captureFailed": "拍摄或保存失败，请重试",
+    "captureUploadFailed": "图片上传失败",
+    "captureNetworkHint": "无法连接服务器。真机调试时请把 EXPO_PUBLIC_BACKEND_BASE_URL 设为与手机同一局域网的电脑 IP（勿用 localhost），或参考仓库里的外网部署脚本。",
+    "captureMemoryTitle": "瞬间随拍",
+    "takePhoto": "拍摄并保存到回忆",
     "awaken": "唤醒回忆",
     "awakenDisabled": "唤醒回忆（未开放）",
     "awakenDisabledTip": "视频生成服务尚未接入：当前版本默认关闭“唤醒回忆”。后续会接入真实的视频生成能力。",
     "awakenSuccess": "回忆已被唤醒！正在刷新...",
     "awakenFailed": "唤醒失败，请稍后重试",
     "awakening": "唤醒中...",
-    "pleaseSelectMemory": "请选择一个回忆"
+    "pleaseSelectMemory": "请选择一个回忆",
+    "deleteTileHint": "从该回忆中移除当前展示的一张图；若为最后一张媒体，将删除整条回忆。"
   },
   "memoryDemo": {
     "titles": {
@@ -212,7 +230,7 @@ const zhCN = {
   },
   "memoryDetail": {
     "title": "回忆详情",
-    "generateSummary": "生成回忆总结",
+    "generateSummary": "总结",
     "summaryFailed": "生成总结失败，请稍后重试",
     "generating": "正在生成...",
     "shareEmotion": "分享情感",
@@ -255,6 +273,8 @@ const zhCN = {
     "hideFailed": "隐藏回忆失败，请重试",
     "memoryIdNotFound": "无法编辑：回忆 ID 不存在",
     "noTitle": "无标题",
+    "deleteMemoryHint": "将彻底删除整条回忆，不可恢复。",
+    "deletePhotoHint": "从本回忆中移除这张媒体；若为最后一张则删除整条回忆。",
     "emotions": {
       "joy": "幸福的",
       "calm": "平静的",
@@ -272,9 +292,13 @@ const zhCN = {
     }
   },
   "vlog": {
-    "title": "Vlog 创作",
+    "title": "Vlog",
+    "segmentCreateTitle": "Vlog 创作",
+    "segmentGalleryTitle": "Vlog 集萃",
+    "galleryEmpty": "暂无 Vlog，在「创作」里生成并保存后即可在此查看",
+    "playVlog": "播放",
     "intro": "照片合成视频",
-    "introDesc": "选择多个回忆，将把其中的照片合成为一条可播放、可分享的 Vlog 视频（服务端 ffmpeg 幻灯片 + 默认轻配乐，可用环境变量更换 BGM）。",
+    "introDesc": "选择多个回忆，将把其中的照片合成为一条可播放、可分享的 Vlog 视频。",
     "vlogTitle": "Vlog 标题",
     "enterTitle": "输入标题（选填）",
     "emptyMemoryList": "暂无回忆，请先在首页添加后再来创作 Vlog。",
@@ -285,7 +309,13 @@ const zhCN = {
     "generatingTip": "AI 正在分析回忆并生成视频，请稍候",
     "generated": "Vlog 已生成",
     "duration": "时长",
-    "resultDesc": "您的Vlog已生成完成，可以播放或分享",
+    "resultDesc": "可全屏预览；右上角分享。点「保存」后可在「Vlog 集萃」中查看。",
+    "save": "保存",
+    "saveSuccess": "已保存到列表",
+    "saveListUpdated": "已加入集萃，可在「Vlog 集萃」查看",
+    "saveFailed": "保存失败，请稍后重试",
+    "savedListTitle": "我的 Vlog",
+    "savedListEmpty": "暂无记录",
     "share": "分享",
     "shareMessage": "{{title}}\n{{url}}",
     "shareNoUrl": "暂无可分享的视频链接",
@@ -299,7 +329,9 @@ const zhCN = {
     "noImagesForVlog": "所选回忆中没有可用的网络图片（需 http(s) 图片链接）。请先为回忆添加照片后再生成。",
     "memoryTitle": "回忆标题",
     "memoryDate": "回忆日期",
-    "memoryLocation": "回忆地点"
+    "memoryLocation": "回忆地点",
+    "deleteGalleryHint": "将从集萃中删除该 Vlog，不可恢复。",
+    "deleteMemoryListHint": "将删除这条回忆（含照片），且不可恢复。从列表中移除后无法用于未完成的创作。"
   },
   "pet": {
     "title": "宠物能量",
@@ -376,7 +408,9 @@ const en = {
     "previous": "Previous",
     "next": "Next",
     "seconds": "seconds",
-    "photoViewer": "Photo viewer"
+    "photoViewer": "Photo viewer",
+    "deleteSuccess": "Deleted",
+    "deleteFailed": "Could not delete. Please try again."
   },
   "tab": {
     "home": "Home",
@@ -386,10 +420,16 @@ const en = {
     "profile": "Profile",
     "addVoiceLongPressHint": "Long-press for voice commands, e.g. “Add a memory”",
     "voiceCommandTitle": "Voice command",
-    "voiceCommandSubtitle": "Say where to go, e.g. “Add a memory” or “Open moments”",
-    "voiceCommandUnknown": "Command not recognized. Try: add a memory, Vlog, moments, family, home, profile",
+    "voiceCommandSubtitle": "For example: “Add a memory”, “Find the birthday memory”, “Make a vlog for the beach trip”, “Open moments”",
+    "voiceCommandUnknown": "Command not recognized. Try: add a memory, find a memory, make a vlog for a memory, Vlog, moments, family, home, profile",
     "voiceOpenAddMemory": "Opening add memory",
     "voiceOpenVlog": "Opening Vlog",
+    "voiceOpenFindMemory": "Opening that memory",
+    "voiceOpenVlogForMemory": "Opening Vlog (memory selected)",
+    "voiceMemoryNotFound": "No matching memory. Try a more specific title or keyword",
+    "voiceMemoryAmbiguous": "Several memories look similar. Please be more specific",
+    "voiceMemoryQueryEmpty": "Say a memory title or keyword",
+    "voiceMemoryLoadFailed": "Could not load memories. Please try again",
     "voiceOpenMoments": "Opening moments",
     "voiceOpenFamily": "Opening family",
     "voiceOpenHome": "Going to home",
@@ -431,7 +471,7 @@ const en = {
     "saveFailed": "Save failed, please try again"
   },
   "home": {
-    "title": "Memories",
+    "title": "Time Gallery",
     "subtitle": "Record every warm moment",
     "recentMemories": "Recent Memories",
     "quickMood": "Quick Mood",
@@ -454,7 +494,8 @@ const en = {
     "generating": "Generating...",
     "recordMood": "Record Mood",
     "shareToFamily": "Share to Family",
-    "shareSuccess": "Shared to family space"
+    "shareSuccess": "Shared to family space",
+    "deleteMemoryMessage": "This will delete the memory (including all photos and mood data). It cannot be undone."
   },
   "family": {
     "title": "Family Space",
@@ -489,13 +530,22 @@ const en = {
     "title": "Moments",
     "empty": "No moments yet",
     "startCapturing": "Start capturing beautiful moments",
+    "cameraPermissionDenied": "Camera permission is required to take photos",
+    "cameraWebUnsupported": "Use the mobile app to take photos on this device",
+    "captureSaved": "Photo saved",
+    "captureFailed": "Could not save the photo. Please try again.",
+    "captureUploadFailed": "Image upload failed",
+    "captureNetworkHint": "Could not reach the server. On a physical device, set EXPO_PUBLIC_BACKEND_BASE_URL to your computer's LAN IP (not localhost), or use the project's deploy script for remote access.",
+    "captureMemoryTitle": "Moment capture",
+    "takePhoto": "Take photo and save to memories",
     "awaken": "Awaken Memory",
     "awakenDisabled": "Awaken (not available)",
     "awakenDisabledTip": "Video generation is not enabled in this build. “Awaken memory” is disabled by default until the video service is integrated.",
     "awakenSuccess": "Memory awakened! Refreshing...",
     "awakenFailed": "Awaken failed, please try again",
     "awakening": "Awakening...",
-    "pleaseSelectMemory": "Please select a memory"
+    "pleaseSelectMemory": "Please select a memory",
+    "deleteTileHint": "Remove the image shown for this memory from the album. If it was the last medium, the whole memory will be deleted."
   },
   "memoryDemo": {
     "titles": {
@@ -566,7 +616,7 @@ const en = {
   },
   "memoryDetail": {
     "title": "Memory Detail",
-    "generateSummary": "Generate Summary",
+    "generateSummary": "Summary",
     "summaryFailed": "Failed to generate summary, please try again",
     "generating": "Generating...",
     "shareEmotion": "Share Emotion",
@@ -609,6 +659,8 @@ const en = {
     "hideFailed": "Failed to hide memory, please try again",
     "memoryIdNotFound": "Cannot edit: Memory ID does not exist",
     "noTitle": "No Title",
+    "deleteMemoryHint": "This will permanently delete the entire memory.",
+    "deletePhotoHint": "Remove this photo or video from the memory. If it is the last one, the whole memory will be deleted.",
     "emotions": {
       "joy": "Joyful",
       "calm": "Calm",
@@ -626,9 +678,13 @@ const en = {
     }
   },
   "vlog": {
-    "title": "Vlog Creation",
+    "title": "Vlog",
+    "segmentCreateTitle": "Create",
+    "segmentGalleryTitle": "Collection",
+    "galleryEmpty": "No Vlogs yet. Create and save one in Create.",
+    "playVlog": "Play",
     "intro": "Photo slideshow",
-    "introDesc": "Select memories with photos; the server builds a slideshow (ffmpeg) with light default background music (override via env).",
+    "introDesc": "Select memories with photos; the server builds a slideshow (ffmpeg) with light default background music.",
     "vlogTitle": "Vlog Title",
     "enterTitle": "Enter title (optional)",
     "emptyMemoryList": "No memories yet. Add some on the home screen, then come back to create a Vlog.",
@@ -639,7 +695,13 @@ const en = {
     "generatingTip": "AI is analyzing memories and generating video, please wait",
     "generated": "Vlog Generated",
     "duration": "Duration",
-    "resultDesc": "Your Vlog has been generated, you can play or share",
+    "resultDesc": "Preview full-screen; share from the top-right. Tap Save, then open Collection to view.",
+    "save": "Save",
+    "saveSuccess": "Saved to your list",
+    "saveListUpdated": "Saved to Collection",
+    "saveFailed": "Could not save. Please try again.",
+    "savedListTitle": "My Vlogs",
+    "savedListEmpty": "No entries yet",
     "share": "Share",
     "shareMessage": "{{title}}\n{{url}}",
     "shareNoUrl": "No video link to share",
@@ -653,7 +715,9 @@ const en = {
     "noImagesForVlog": "None of the selected memories have usable http(s) images. Add photos to memories first.",
     "memoryTitle": "Memory Title",
     "memoryDate": "Memory Date",
-    "memoryLocation": "Memory Location"
+    "memoryLocation": "Memory Location",
+    "deleteGalleryHint": "Remove this Vlog from your collection. This cannot be undone.",
+    "deleteMemoryListHint": "Delete this memory (including photos). It cannot be undone. It will disappear from this list and cannot be used in unfinished Vlogs."
   },
   "pet": {
     "title": "Pet Energy",
@@ -730,7 +794,9 @@ const hi = {
     "previous": "पिछला",
     "next": "अगला",
     "seconds": "सेकंड",
-    "photoViewer": "फोटो दर्शक"
+    "photoViewer": "फोटो दर्शक",
+    "deleteSuccess": "हटा दिया गया",
+    "deleteFailed": "हटाना विफल, पुनः प्रयास करें"
   },
   "tab": {
     "home": "होम",
@@ -740,10 +806,16 @@ const hi = {
     "profile": "प्रोफ़ाइल",
     "addVoiceLongPressHint": "देर तक दबाकर आवाज़ से कहें, जैसे “मुझे एक याद जोड़नी है”",
     "voiceCommandTitle": "आवाज़ निर्देश",
-    "voiceCommandSubtitle": "कहें कहाँ जाना है, जैसे “नई याद जोड़ें” या “पल खोलें”",
-    "voiceCommandUnknown": "आदेश समझ नहीं आया। आज़माएं: नई याद, Vlog, पल, परिवार, होम, प्रोफ़ाइल",
+    "voiceCommandSubtitle": "जैसे: नई याद, किसी याद को खोजें, किसी याद के लिए Vlog, पल खोलें",
+    "voiceCommandUnknown": "आदेश समझ नहीं आया। आज़माएं: नई याद, याद खोजें, Vlog, पल, परिवार, होम, प्रोफ़ाइल",
     "voiceOpenAddMemory": "नई याद खोल रहे हैं",
     "voiceOpenVlog": "Vlog खोल रहे हैं",
+    "voiceOpenFindMemory": "वह याद खोल रहे हैं",
+    "voiceOpenVlogForMemory": "Vlog खोल रहे हैं (याद चुनी गई)",
+    "voiceMemoryNotFound": "मिलती-जुलती याद नहीं मिली, और साफ़ बताएँ",
+    "voiceMemoryAmbiguous": "कई यादें मिलती हैं, और स्पष्ट शीर्षक बताएँ",
+    "voiceMemoryQueryEmpty": "याद का नाम या कीवर्ड बोलें",
+    "voiceMemoryLoadFailed": "यादें लोड नहीं हो सकीं, बाद में कोशिश करें",
     "voiceOpenMoments": "पल खोल रहे हैं",
     "voiceOpenFamily": "परिवार खोल रहे हैं",
     "voiceOpenHome": "होम पर जा रहे हैं",
@@ -785,7 +857,7 @@ const hi = {
     "saveFailed": "सहेजना विफल, कृपया पुनः प्रयास करें"
   },
   "home": {
-    "title": "यादें",
+    "title": "समय गैलरी",
     "subtitle": "हर गर्म पल को रिकॉर्ड करें",
     "recentMemories": "हाल की यादें",
     "quickMood": "त्वरित मूड",
@@ -808,7 +880,8 @@ const hi = {
     "generating": "बना रहा है...",
     "recordMood": "मूड रिकॉर्ड करें",
     "shareToFamily": "परिवार को साझा करें",
-    "shareSuccess": "परिवार स्थान में साझा किया गया"
+    "shareSuccess": "परिवार स्थान में साझा किया गया",
+    "deleteMemoryMessage": "यह पूरी याद (सभी फ़ोटो व मूड) हटा देगा और वापस नहीं आएगी।"
   },
   "family": {
     "title": "परिवार स्थान",
@@ -843,13 +916,22 @@ const hi = {
     "title": "पल",
     "empty": "अभी कोई पल नहीं",
     "startCapturing": "सुंदर पल捕捉 शुरू करें",
+    "cameraPermissionDenied": "फोटो के लिए कैमरा अनुमति चाहिए",
+    "cameraWebUnsupported": "फोटो के लिए मोबाइल ऐप उपयोग करें",
+    "captureSaved": "फोटो सहेजा गया",
+    "captureFailed": "सहेजना विफल, पुनः प्रयास करें",
+    "captureUploadFailed": "अपलोड विफल",
+    "captureNetworkHint": "सर्वर तक पहुँच नहीं बन पाई। फोन पर टेस्ट करते समय EXPO_PUBLIC_BACKEND_BASE_URL में कंप्यूटर का LAN IP दें (localhost नहीं)।",
+    "captureMemoryTitle": "पल की फोटो",
+    "takePhoto": "फोटो लें और याद में सहेजें",
     "awaken": "याद जगाएं",
     "awakenDisabled": "जगाएं (उपलब्ध नहीं)",
     "awakenDisabledTip": "वीडियो जनरेशन सेवा अभी जोड़ी नहीं गई है: इस बिल्ड में “याद जगाएं” डिफ़ॉल्ट रूप से बंद है।",
     "awakenSuccess": "याद जाग गई! रिफ्रेश हो रही है...",
     "awakenFailed": "जगाना विफल, कृपया पुनः प्रयास करें",
     "awakening": "जगा रहा है...",
-    "pleaseSelectMemory": "कृपया एक याद चुनें"
+    "pleaseSelectMemory": "कृपया एक याद चुनें",
+    "deleteTileHint": "इस याद से दिखाई जा रही छवि हटाएं; अंतिम मीडिया होने पर पूरी याद हट जाएगी।"
   },
   "memoryDemo": {
     "titles": {
@@ -920,7 +1002,7 @@ const hi = {
   },
   "memoryDetail": {
     "title": "याद विवरण",
-    "generateSummary": "सारांश बनाएं",
+    "generateSummary": "सारांश",
     "summaryFailed": "सारांश बनाना विफल, कृपया पुनः प्रयास करें",
     "generating": "बना रहा है...",
     "shareEmotion": "भावना साझा करें",
@@ -963,6 +1045,8 @@ const hi = {
     "hideFailed": "याद छुपाना विफल, कृपया पुनः प्रयास करें",
     "memoryIdNotFound": "संपादित नहीं कर सकते: याद आईडी मौजूद नहीं है",
     "noTitle": "बिना शीर्षक",
+    "deleteMemoryHint": "पूरी याद स्थायी रूप से हटा दी जाएगी।",
+    "deletePhotoHint": "इस याद से यह फ़ोटो/वीडियो हटाएं; अंतिम होने पर पूरी याद हट जाएगी।",
     "emotions": {
       "joy": "खुश",
       "calm": "शांत",
@@ -980,7 +1064,11 @@ const hi = {
     }
   },
   "vlog": {
-    "title": "Vlog बनाएं",
+    "title": "Vlog",
+    "segmentCreateTitle": "Vlog बनाएं",
+    "segmentGalleryTitle": "Vlog संग्रह",
+    "galleryEmpty": "अभी कोई Vlog नहीं। बनाएं में बनाकर सहेजें।",
+    "playVlog": "चलाएं",
     "intro": "फ़ोटो स्लाइडशो",
     "introDesc": "ऐसी यादें चुनें जिनमें फ़ोटो हों; सर्वर ffmpeg से स्लाइडशो + हल्का BGM बनाता है।",
     "vlogTitle": "Vlog शीर्षक",
@@ -993,7 +1081,13 @@ const hi = {
     "generatingTip": "AI यादों का विश्लेषण और वीडियो बना रहा है, कृपया प्रतीक्षा करें",
     "generated": "Vlog बन गई",
     "duration": "अवधि",
-    "resultDesc": "आपकी Vlog बन गई है, आप इसे चला या साझा कर सकते हैं",
+    "resultDesc": "पूर्ण स्क्रीन में देखें; ऊपर दाएँ साझा करें। सहेजने के बाद «Vlog संग्रह» में देखें।",
+    "save": "सहेजें",
+    "saveSuccess": "सूची में सहेजा गया",
+    "saveListUpdated": "संग्रह में जोड़ा गया",
+    "saveFailed": "सहेजना विफल, बाद में कोशिश करें",
+    "savedListTitle": "मेरी Vlogs",
+    "savedListEmpty": "अभी कोई नहीं",
     "share": "साझा करें",
     "shareMessage": "{{title}}\n{{url}}",
     "shareNoUrl": "साझा करने के लिए कोई वीडियो लिंक नहीं",
@@ -1007,7 +1101,9 @@ const hi = {
     "noImagesForVlog": "चुनी गई यादों में कोई उपयोग योग्य http(s) छवि नहीं है। पहले यादों में फ़ोटो जोड़ें।",
     "memoryTitle": "याद शीर्षक",
     "memoryDate": "याद तिथि",
-    "memoryLocation": "याद स्थान"
+    "memoryLocation": "याद स्थान",
+    "deleteGalleryHint": "इस Vlog को संग्रह से हटा दें; वापस नहीं होगा।",
+    "deleteMemoryListHint": "यह याद (फ़ोटो सहित) हटा देगा। अधूरे Vlog में उपयोग नहीं हो सकेगी।"
   },
   "pet": {
     "title": "पालतू ऊर्जा",

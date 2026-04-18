@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   Platform,
+  Pressable,
   type ImageStyle,
   type StyleProp,
 } from 'react-native';
@@ -40,6 +41,8 @@ import GlowingCluster from '@/components/GlowingCluster';
 import VoiceInput from '@/components/VoiceInput';
 import { useToast } from '@/hooks/useToast';
 import { getBackendBaseUrl } from '@/utils/backend';
+import { InlineDeleteReveal } from '@/components/InlineDeleteReveal';
+import { deleteMemoryById, removeMediaUrlFromMemory } from '@/utils/memoryRemote';
 import { formatDateLocalized } from '@/utils/localeFormat';
 import { useMemoryDisplayText } from '@/hooks/useMemoryDisplayText';
 
@@ -316,6 +319,43 @@ export default function MemoryDetailScreen() {
     useCallback(() => {
       fetchMemoryDetail();
     }, [fetchMemoryDetail])
+  );
+
+  const memoryIdForApi = params.memoryId || realMemory?.id || '';
+  const runDeleteEntireMemory = useCallback(async () => {
+    if (!memoryIdForApi) {
+      showError(t('memoryDetail.memoryIdNotFound'));
+      return;
+    }
+    const r = await deleteMemoryById(memoryIdForApi);
+    if (!r.ok) {
+      showError(r.error || t('common.deleteFailed'));
+      return;
+    }
+    showSuccess(t('common.deleteSuccess'));
+    router.back();
+  }, [memoryIdForApi, t, router, showError, showSuccess]);
+
+  const runDeletePhotoWallItem = useCallback(
+    async (imageUrl: string) => {
+      if (!memoryIdForApi) {
+        showError(t('memoryDetail.memoryIdNotFound'));
+        return;
+      }
+      const res = await removeMediaUrlFromMemory(memoryIdForApi, imageUrl);
+      if (res === 'error') {
+        showError(t('common.deleteFailed'));
+        return;
+      }
+      if (res === 'memory_deleted') {
+        showSuccess(t('common.deleteSuccess'));
+        router.back();
+        return;
+      }
+      await fetchMemoryDetail(memoryIdForApi);
+      showSuccess(t('common.deleteSuccess'));
+    },
+    [memoryIdForApi, t, fetchMemoryDetail, showError, showSuccess, router]
   );
   
   // 动画值
@@ -614,77 +654,85 @@ export default function MemoryDetailScreen() {
             </View>
           </View>
         ) : realMemory?.coverImage ? (
-          <Animated.View style={[styles.imageContainer, imageAnimatedStyle]}>
-            <Image
-              source={{ uri: realMemory.coverImage }}
-              style={styles.mainImage}
-              resizeMode="cover"
-            />
-            {/* 渐变遮罩 */}
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.7)']}
-              style={styles.imageGradient}
-            />
-            
-            {/* 标题叠加 - 使用真实数据 */}
-            <View style={styles.titleOverlay}>
-              <Text style={styles.mainTitle}>{memoryTitleDisplay}</Text>
-              <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="calendar" size={14} color="rgba(255,255,255,0.8)" />
-                  <Text style={styles.metaText}>{realMemory.date}</Text>
-                </View>
-                {memoryLocationDisplay ? (
-                <View style={styles.metaItem}>
-                  <Ionicons name="location" size={14} color="rgba(255,255,255,0.8)" />
-                  <Text style={styles.metaText}>{memoryLocationDisplay}</Text>
-                </View>
-                ) : null}
-              </View>
-            </View>
-            
-            {/* 情感标签 - 使用真实数据 */}
-            {realMemory.mood && (
-              <Animated.View 
-                entering={FadeInDown.delay(400)}
-                style={[styles.emotionBadge, { backgroundColor: `${getEmotionColor(realMemory.mood)}40` }]}
-              >
-                <Ionicons 
-                  name={EMOTION_ICONS_MAP[realMemory.mood] || 'heart'} 
-                  size={16} 
-                  color={getEmotionColor(realMemory.mood)} 
-                />
-                <Text style={[styles.emotionBadgeText, { color: getEmotionColor(realMemory.mood) }]}>
-                  {t(`memoryDetail.emotions.${realMemory.mood}`) || t('memoryDetail.emotions.warm')}
-                </Text>
+          <InlineDeleteReveal onDelete={runDeleteEntireMemory}>
+            {(openBar) => (
+              <Animated.View style={[styles.imageContainer, imageAnimatedStyle]}>
+                <Pressable style={{ flex: 1 }} onLongPress={openBar} delayLongPress={450}>
+                  <Image
+                    source={{ uri: realMemory.coverImage }}
+                    style={styles.mainImage}
+                    resizeMode="cover"
+                  />
+                  {/* 渐变遮罩 */}
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.7)']}
+                    style={styles.imageGradient}
+                  />
+
+                  {/* 标题叠加 - 使用真实数据 */}
+                  <View style={styles.titleOverlay}>
+                    <Text style={styles.mainTitle}>{memoryTitleDisplay}</Text>
+                    <View style={styles.metaRow}>
+                      <View style={styles.metaItem}>
+                        <Ionicons name="calendar" size={14} color="rgba(255,255,255,0.8)" />
+                        <Text style={styles.metaText}>{realMemory.date}</Text>
+                      </View>
+                      {memoryLocationDisplay ? (
+                        <View style={styles.metaItem}>
+                          <Ionicons name="location" size={14} color="rgba(255,255,255,0.8)" />
+                          <Text style={styles.metaText}>{memoryLocationDisplay}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  {/* 情感标签 - 使用真实数据 */}
+                  {realMemory.mood && (
+                    <Animated.View
+                      entering={FadeInDown.delay(400)}
+                      style={[styles.emotionBadge, { backgroundColor: `${getEmotionColor(realMemory.mood)}40` }]}
+                    >
+                      <Ionicons
+                        name={EMOTION_ICONS_MAP[realMemory.mood] || 'heart'}
+                        size={16}
+                        color={getEmotionColor(realMemory.mood)}
+                      />
+                      <Text style={[styles.emotionBadgeText, { color: getEmotionColor(realMemory.mood) }]}>
+                        {t(`memoryDetail.emotions.${realMemory.mood}`) || t('memoryDetail.emotions.warm')}
+                      </Text>
+                    </Animated.View>
+                  )}
+
+                  {/* 多人参与标识 */}
+                  {memory.isMultiUser && (
+                    <Animated.View entering={FadeIn.delay(500)} style={styles.multiUserContainer}>
+                      <GlowingCluster userCount={memory.userCount} size={50} />
+                    </Animated.View>
+                  )}
+                </Pressable>
               </Animated.View>
             )}
-            
-            {/* 多人参与标识 */}
-            {memory.isMultiUser && (
-              <Animated.View entering={FadeIn.delay(500)} style={styles.multiUserContainer}>
-                <GlowingCluster userCount={memory.userCount} size={50} />
-              </Animated.View>
-            )}
-          </Animated.View>
+          </InlineDeleteReveal>
         ) : (
           // 无图片的情感快照展示
-          <Animated.View 
-            entering={FadeIn}
-            style={[styles.emotionSnapshot, { backgroundColor: `${memory.emotionColor}20` }]}
-          >
-            <View style={[styles.snapshotIcon, { backgroundColor: `${memory.emotionColor}30` }]}>
-              <Ionicons 
-                name={memory.emotionIcon as any} 
-                size={48} 
-                color={memory.emotionColor} 
-              />
-            </View>
-            <Text style={[styles.snapshotTitle, { color: memory.emotionColor }]}>
-              {memoryTitleDisplay}
-            </Text>
-            <Text style={styles.snapshotDate}>{realMemory?.date || memory.date}</Text>
-          </Animated.View>
+          <InlineDeleteReveal onDelete={runDeleteEntireMemory}>
+            {(openBar) => (
+              <Pressable onLongPress={openBar} delayLongPress={450}>
+                <Animated.View
+                  entering={FadeIn}
+                  style={[styles.emotionSnapshot, { backgroundColor: `${memory.emotionColor}20` }]}
+                >
+                  <View style={[styles.snapshotIcon, { backgroundColor: `${memory.emotionColor}30` }]}>
+                    <Ionicons name={memory.emotionIcon as any} size={48} color={memory.emotionColor} />
+                  </View>
+                  <Text style={[styles.snapshotTitle, { color: memory.emotionColor }]}>
+                    {memoryTitleDisplay}
+                  </Text>
+                  <Text style={styles.snapshotDate}>{realMemory?.date || memory.date}</Text>
+                </Animated.View>
+              </Pressable>
+            )}
+          </InlineDeleteReveal>
         )}
 
         {/* 情感统计 - 在封面图下方 */}
@@ -710,38 +758,48 @@ export default function MemoryDetailScreen() {
               {realMemory.images.map((imageUrl, index) => {
                 const isVideo = isVideoUrl(imageUrl);
                 return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.photoWallItem,
-                      realMemory.images.length === 1 && styles.photoWallItemSingle,
-                      realMemory.images.length === 2 && styles.photoWallItemHalf,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      // 点击图片打开查看器（暂时只展示单张）
-                      router.push('/photo-viewer', {
-                        images: JSON.stringify(realMemory.images),
-                        initialIndex: index,
-                      });
-                    }}
+                  <InlineDeleteReveal
+                    key={`${imageUrl}-${index}`}
+                    onDelete={() => runDeletePhotoWallItem(imageUrl)}
                   >
-                    {isVideo ? (
-                      <PhotoWallVideoThumb uri={imageUrl} style={styles.photoWallImage} />
-                    ) : (
-                      <Image 
-                        source={{ uri: imageUrl }} 
-                        style={styles.photoWallImage}
-                        resizeMode="cover"
-                      />
-                    )}
-                    {/* 视频标识 */}
-                    {isVideo && (
-                      <View style={styles.videoIndicator}>
-                        <Ionicons name="play-circle" size={28} color="#FFF" />
+                    {(openBar) => (
+                      <View
+                        style={[
+                          styles.photoWallItem,
+                          realMemory.images.length === 1 && styles.photoWallItemSingle,
+                          realMemory.images.length === 2 && styles.photoWallItemHalf,
+                        ]}
+                      >
+                        <Pressable
+                          style={styles.photoWallPressable}
+                          onPress={() => {
+                            router.push('/photo-viewer', {
+                              images: JSON.stringify(realMemory.images),
+                              initialIndex: String(index),
+                              memoryId: realMemory.id,
+                            });
+                          }}
+                          onLongPress={openBar}
+                          delayLongPress={450}
+                        >
+                          {isVideo ? (
+                            <PhotoWallVideoThumb uri={imageUrl} style={styles.photoWallImage} />
+                          ) : (
+                            <Image
+                              source={{ uri: imageUrl }}
+                              style={styles.photoWallImage}
+                              resizeMode="cover"
+                            />
+                          )}
+                          {isVideo && (
+                            <View style={styles.videoIndicator}>
+                              <Ionicons name="play-circle" size={28} color="#FFF" />
+                            </View>
+                          )}
+                        </Pressable>
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </InlineDeleteReveal>
                 );
               })}
             </View>
@@ -813,16 +871,19 @@ export default function MemoryDetailScreen() {
         style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}
       >
         <TouchableOpacity
-          style={styles.reactionButton}
+          style={[styles.bottomBarIconButton, styles.bottomBarIconEmotion]}
           onPress={() => setShowReactionModal(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t('memoryDetail.sendEmotion')}
         >
-          <Ionicons name="heart-circle-outline" size={22} color="#7C6AFF" />
-          <Text style={styles.reactionButtonText}>{t('memoryDetail.sendEmotion')}</Text>
+          <Ionicons name="heart-circle-outline" size={24} color="#7C6AFF" />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.summaryButton, isGeneratingSummary && styles.summaryButtonDisabled]}
           onPress={handleGenerateSummary}
           disabled={isGeneratingSummary}
+          accessibilityRole="button"
+          accessibilityLabel={t('memoryDetail.generateSummary')}
         >
           <Ionicons name="sparkles" size={22} color={isGeneratingSummary ? '#999' : '#FF7B8A'} />
           <Text style={[styles.summaryButtonText, isGeneratingSummary && styles.summaryButtonTextDisabled]}>
@@ -830,7 +891,7 @@ export default function MemoryDetailScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.voiceButton}
+          style={[styles.bottomBarIconButton, styles.bottomBarIconVoice]}
           onPress={() => {
             if (!selectedFamilyMember) {
               setShowMemberSelector(true);
@@ -838,11 +899,16 @@ export default function MemoryDetailScreen() {
               setShowVoiceInteraction(true);
             }
           }}
+          accessibilityRole="button"
+          accessibilityLabel={t('memoryDetail.voiceInteraction')}
         >
-          <Ionicons name="mic" size={22} color="#FF9500" />
-          <Text style={styles.voiceButtonText}>{t('memoryDetail.voiceInteraction')}</Text>
+          <Ionicons name="mic" size={24} color="#FF9500" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.shareButton}>
+        <TouchableOpacity
+          style={styles.shareButton}
+          accessibilityRole="button"
+          accessibilityLabel={t('vlog.share')}
+        >
           <Ionicons name="share-social-outline" size={22} color="#666" />
         </TouchableOpacity>
       </Animated.View>
@@ -1302,6 +1368,11 @@ const styles = StyleSheet.create({
     width: (SCREEN_WIDTH - 56) / 2,
     aspectRatio: 4 / 3,
   },
+  photoWallPressable: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   photoWallImage: {
     width: '100%',
     height: '100%',
@@ -1403,22 +1474,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderTopWidth: 1,
     borderTopColor: '#F0F0F3',
-    gap: 16,
+    gap: 12,
   },
-  reactionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(124, 106, 255, 0.1)',
-    paddingVertical: 12,
+  bottomBarIconButton: {
+    width: 48,
+    height: 48,
     borderRadius: 24,
-    gap: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  reactionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#7C6AFF',
+  bottomBarIconEmotion: {
+    backgroundColor: 'rgba(124, 106, 255, 0.12)',
+  },
+  bottomBarIconVoice: {
+    backgroundColor: 'rgba(255, 149, 0, 0.12)',
   },
   shareButton: {
     width: 48,
@@ -1509,36 +1578,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 123, 138, 0.1)',
     paddingVertical: 12,
+    paddingHorizontal: 10,
     borderRadius: 24,
-    gap: 8,
+    gap: 6,
+    minWidth: 0,
   },
   summaryButtonDisabled: {
     backgroundColor: '#F8F8FA',
     opacity: 0.6,
   },
   summaryButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#FF7B8A',
+    flexShrink: 1,
   },
   summaryButtonTextDisabled: {
     color: '#999',
-  },
-  // 语音互动按钮
-  voiceButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 149, 0, 0.1)',
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
-  },
-  voiceButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FF9500',
   },
   // 一键回忆弹窗
   summaryModal: {

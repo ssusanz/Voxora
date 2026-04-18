@@ -2,6 +2,7 @@ import './load-env';
 import path from 'path';
 import { isGeminiSummarizeConfigured } from './lib/gemini-summarize';
 import { isLocalLlmSummarizeConfigured } from './lib/local-llm-summarize';
+import { getSupabaseServiceRoleKey } from './storage/database/supabase-client';
 import express from "express";
 import cors from "cors";
 import memoriesRouter from "./routes/memories";
@@ -35,6 +36,10 @@ app.get('/api/v1/health', (req, res) => {
     summarize: {
       gemini: isGeminiSummarizeConfigured(),
       localLlm: isLocalLlmSummarizeConfigured(),
+    },
+    supabase: {
+      /** 未配置时列表走 anon，若 RLS 禁止读 memories 会得到空数组 */
+      memoriesListUsesServiceRole: Boolean(getSupabaseServiceRoleKey()),
     },
   });
 });
@@ -100,5 +105,9 @@ app.listen(port, () => {
   console.log(`API available at http://localhost:${port}/api/v1/`);
   console.log(
     `[summarize] Gemini: ${isGeminiSummarizeConfigured() ? 'on' : 'off'}, local LLM: ${isLocalLlmSummarizeConfigured() ? 'on' : 'off'}`
+  );
+  const sr = Boolean(getSupabaseServiceRoleKey());
+  console.log(
+    `[supabase] GET /memories 使用 ${sr ? 'service_role（可绕过 RLS）' : 'anon（受 RLS 限制；无数据时请配置 SUPABASE_SERVICE_ROLE_KEY）'}`
   );
 });

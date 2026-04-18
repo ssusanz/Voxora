@@ -32,35 +32,75 @@ router.get('/', async (req, res) => {
     const { familyId, page = 1, limit = 20 } = req.query;
     const client = getSupabaseClient();
 
-    let query = client
-      .from('memories')
-      .select(`
-        *,
-        users:user_id (name)
-      `, { count: 'exact' })
-      .eq('is_hidden', false) // 过滤已隐藏的回忆
-      .order('created_at', { ascending: false }); // 按创建时间倒序
-
-    if (familyId) {
-      query = query.eq('family_id', familyId);
-    }
-
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
+    const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 20));
     const start = (pageNum - 1) * limitNum;
     const end = start + limitNum - 1;
 
-    const { data, error, count } = await query.range(start, end);
+    const buildBase = () => {
+      let q = client
+        .from('memories')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false });
+      if (familyId) {
+        q = q.eq('family_id', familyId);
+      }
+      return q;
+    };
+
+    /** 不用嵌套 users:user_id —— 外键/关系未在 PostgREST 暴露时整段查询会失败，客户端表现为一直无数据 */
+    let { data, error, count } = await buildBase()
+      .or('is_hidden.eq.false,is_hidden.is.null')
+      .range(start, end);
+
+    if (error && /is_hidden|42703|column .* does not exist/i.test(error.message)) {
+      console.warn('[memories:list] is_hidden 不可用，省略可见性条件:', error.message);
+      ({ data, error, count } = await buildBase().range(start, end));
+    }
 
     if (error) {
       throw new Error(`查询失败: ${error.message}`);
     }
 
-    // 格式化返回数据，提取用户名称
-    const formattedData = (data || []).map(item => ({
-      ...item,
-      user_name: item.users?.name || '家人',
-    }));
+    const rows = (data || []) as Record<string, unknown>[];
+    const userIds = [
+      ...new Set(
+        rows
+          .map((r) => (typeof r.user_id === 'string' ? r.user_id.trim() : ''))
+          .filter(Boolean)
+      ),
+    ];
+
+    const nameById = new Map<string, string>();
+    if (userIds.length > 0) {
+      const { data: userRows, error: userErr } = await client.from('users').select('id,name').in('id', userIds);
+      if (userErr) {
+        console.warn('[memories:list] users 表查询失败（仍返回回忆）:', userErr.message);
+      } else if (userRows) {
+        for (const u of userRows as { id?: string; name?: string | null }[]) {
+          const id = typeof u?.id === 'string' ? u.id.trim() : '';
+          if (!id) continue;
+          const n = typeof u.name === 'string' ? u.name.trim() : '';
+          nameById.set(id, n || '家人');
+        }
+      }
+    }
+
+    const formattedData = rows.map((item) => {
+      const uid = typeof item.user_id === 'string' ? item.user_id.trim() : '';
+      return {
+        ...item,
+        user_name: uid ? nameById.get(uid) || '家人' : '家人',
+      };
+    });
+
+    console.info('[memories:list]', {
+      page: pageNum,
+      limit: limitNum,
+      returned: formattedData.length,
+      total: count ?? 0,
+      familyId: familyId ? String(familyId) : undefined,
+    });
 
     res.json({
       data: formattedData,
@@ -126,6 +166,7 @@ router.post('/', async (req, res) => {
       likes: 0,
       is_sealed: isSealed || false,
       unlock_date: unlockDate || null,
+      is_hidden: false,
     };
 
     const { data, error } = await client
@@ -177,6 +218,7 @@ router.post('/quick-mood', async (req, res) => {
       is_sealed: false,
       unlock_date: null,
       is_quick_mood: true, // 标识为心情快速记录
+      is_hidden: false,
     };
 
     console.log('准备插入数据库:', newMemory);

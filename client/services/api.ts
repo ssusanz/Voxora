@@ -5,16 +5,15 @@
 
 import { getBackendBaseUrl } from '@/utils/backend';
 
-const API_BASE_URL = getBackendBaseUrl();
-
 /**
  * 通用的 fetch 封装
+ * 注意：每次请求解析基址，避免模块加载时（独立包尚无 Metro 推断）把 localhost 写死进 APK。
  */
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}/api/v1${endpoint}`;
+  const url = `${getBackendBaseUrl()}/api/v1${endpoint}`;
   
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',

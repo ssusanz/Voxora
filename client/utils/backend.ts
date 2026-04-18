@@ -1,6 +1,8 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+let warnedLocalhostInStandalone = false;
+
 function stripTrailingSlash(url: string): string {
   return url.replace(/\/$/, '');
 }
@@ -101,8 +103,14 @@ function inferBackendPortFromExpoHost(host: string): number {
   return 9091;
 }
 
+function getBackendFromExpoExtra(): string {
+  const extra = Constants.expoConfig?.extra as { backendBaseUrl?: string } | undefined;
+  const v = typeof extra?.backendBaseUrl === 'string' ? extra.backendBaseUrl.trim() : '';
+  return v;
+}
+
 export function getBackendBaseUrl(): string {
-  const env = process.env.EXPO_PUBLIC_BACKEND_BASE_URL?.trim();
+  const env = (process.env.EXPO_PUBLIC_BACKEND_BASE_URL?.trim() || getBackendFromExpoExtra()).trim();
   if (env) {
     if (!isProbablyLocalhost(env)) {
       return normalizeHttpUrl(env);
@@ -120,6 +128,21 @@ export function getBackendBaseUrl(): string {
     return normalizeHttpUrl(`http://${hostnameOnly}:${port}`);
   }
 
-  return normalizeHttpUrl(env && env.length > 0 ? env : 'http://localhost:9091');
+  const fallback = normalizeHttpUrl(env && env.length > 0 ? env : 'http://localhost:9091');
+
+  if (
+    !warnedLocalhostInStandalone &&
+    typeof __DEV__ !== 'undefined' &&
+    !__DEV__ &&
+    Platform.OS !== 'web' &&
+    isProbablyLocalhost(fallback)
+  ) {
+    warnedLocalhostInStandalone = true;
+    console.warn(
+      '[Voxora] API 基址为 localhost：EAS/Release 安装包无法访问你电脑上的后端，列表会为空。请用 `EXPO_PUBLIC_BACKEND_BASE_URL=https://你的API`（或公网 IP+端口）重新执行 eas build，并确保手机网络能访问该地址。'
+    );
+  }
+
+  return fallback;
 }
 

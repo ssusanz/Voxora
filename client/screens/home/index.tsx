@@ -1,9 +1,19 @@
 import { Screen } from '@/components/Screen';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Dimensions, Modal } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  Image,
+  Dimensions,
+  Modal,
+  Pressable,
+} from 'react-native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +26,9 @@ import PetOverlay from '@/components/PetOverlay';
 import { getBackendBaseUrl } from '@/utils/backend';
 import { formatDateLocalized } from '@/utils/localeFormat';
 import { useMemoryDisplayText } from '@/hooks/useMemoryDisplayText';
+import { useToast } from '@/hooks/useToast';
+import { InlineDeleteReveal } from '@/components/InlineDeleteReveal';
+import { deleteMemoryById } from '@/utils/memoryRemote';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -141,8 +154,16 @@ const EMOTION_COLORS: Record<string, string> = {
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
-  const insets = useSafeAreaInsets();
+  /** 底部 Tab 实测高度（含安全区），比手写 90+insets 更准；绝对定位 Tab 会盖住列表需留出尾部空白 */
+  const bottomTabBarHeight = useBottomTabBarHeight();
+  /** 宠物球、长按删除条、卡片阴影与手感留白（与 Tab 叠加区错开） */
+  const timelineFooterHeight = bottomTabBarHeight + 96;
+  const timelineListFooter = useMemo(
+    () => <View style={{ height: timelineFooterHeight }} collapsable={false} />,
+    [timelineFooterHeight]
+  );
   const router = useSafeRouter();
+  const { showSuccess, showError } = useToast();
   const [memories, setMemories] = useState<MemoryNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [alerts] = useState<Alert[]>(mockAlerts);
@@ -158,10 +179,24 @@ export default function HomeScreen() {
        * 接口：GET /api/v1/memories
        * Query 参数：familyId?: string, page?: number, limit?: number
        */
-      const response = await fetch(`${getBackendBaseUrl()}/api/v1/memories?limit=50`);
-      const result = await response.json();
+      const baseUrl = getBackendBaseUrl();
+      const listUrl = `${baseUrl}/api/v1/memories?limit=50`;
+      const response = await fetch(listUrl);
+      const result = (await response.json().catch(() => ({}))) as {
+        data?: unknown[];
+        error?: string;
+      };
 
-      if (result.data) {
+      if (!response.ok) {
+        const msg =
+          (typeof result.error === 'string' && result.error) ||
+          `HTTP ${response.status}`;
+        console.warn('[home] 获取回忆列表失败:', msg, 'url=', listUrl);
+        setMemories([]);
+        return;
+      }
+
+      if (Array.isArray(result.data)) {
         // 转换后端数据格式为前端格式
         const mappedMemories: MemoryNode[] = result.data.map((item: any) => ({
           id: item.id,
@@ -182,9 +217,12 @@ export default function HomeScreen() {
           userName: item.user_name || t('common.member'),
         }));
         setMemories(mappedMemories);
+      } else {
+        console.warn('[home] 回忆列表响应无 data 数组:', listUrl, result);
+        setMemories([]);
       }
     } catch (error) {
-      console.error('获取回忆失败:', error);
+      console.error('获取回忆失败:', error, 'baseUrl=', getBackendBaseUrl());
     } finally {
       setIsLoading(false);
     }
@@ -229,6 +267,19 @@ export default function HomeScreen() {
     }
   }, [fetchMemories]);
 
+  const deleteMemoryItem = useCallback(
+    async (item: MemoryNode) => {
+      const r = await deleteMemoryById(item.id);
+      if (!r.ok) {
+        showError(r.error || t('common.deleteFailed'));
+        return;
+      }
+      await fetchMemories();
+      showSuccess(t('common.deleteSuccess'));
+    },
+    [t, fetchMemories, showError, showSuccess]
+  );
+
   // 渲染心情快速记录节点（特殊样式：只展示心情、家人、添加时间，点击不跳转）
   function QuickMoodNode({ item }: { item: MemoryNode }) {
     const color = item.emotion ? EMOTION_COLORS[item.emotion] : '#7C6AFF';
@@ -240,28 +291,36 @@ export default function HomeScreen() {
 
     return (
       <Animated.View entering={FadeInUp.springify()}>
-        <View style={[styles.quickMoodCard, { backgroundColor: `${color}10` }]}>
-          {/* 左侧心情图标 */}
-          <View style={[styles.quickMoodIconContainer, { backgroundColor: `${color}25` }]}>
-            <Ionicons name={icon} size={28} color={color} />
-          </View>
+        <InlineDeleteReveal onDelete={() => deleteMemoryItem(item)}>
+          {(openBar) => (
+            <View style={[styles.quickMoodCard, { backgroundColor: `${color}10` }]}>
+              <Pressable
+                style={styles.quickMoodPressable}
+                onLongPress={openBar}
+                delayLongPress={450}
+              >
+                {/* 左侧心情图标 */}
+                <View style={[styles.quickMoodIconContainer, { backgroundColor: `${color}25` }]}>
+                  <Ionicons name={icon} size={28} color={color} />
+                </View>
 
-          {/* 中间信息 */}
-          <View style={styles.quickMoodInfo}>
-            <View style={styles.quickMoodRow}>
-              <Text style={[styles.quickMoodLabel, { color }]}>
-                {userName}
-              </Text>
-              <Text style={styles.quickMoodText}>{recordMood}</Text>
+                {/* 中间信息 */}
+                <View style={styles.quickMoodInfo}>
+                  <View style={styles.quickMoodRow}>
+                    <Text style={[styles.quickMoodLabel, { color }]}>{userName}</Text>
+                    <Text style={styles.quickMoodText}>{recordMood}</Text>
+                  </View>
+                  <Text style={styles.quickMoodTime}>{date}</Text>
+                </View>
+
+                {/* 右侧心情气泡 */}
+                <View style={[styles.quickMoodBubble, { backgroundColor: `${color}20` }]}>
+                  <Ionicons name={icon} size={16} color={color} />
+                </View>
+              </Pressable>
             </View>
-            <Text style={styles.quickMoodTime}>{date}</Text>
-          </View>
-
-          {/* 右侧心情气泡 */}
-          <View style={[styles.quickMoodBubble, { backgroundColor: `${color}20` }]}>
-            <Ionicons name={icon} size={16} color={color} />
-          </View>
-        </View>
+          )}
+        </InlineDeleteReveal>
       </Animated.View>
     );
   }
@@ -278,35 +337,40 @@ export default function HomeScreen() {
 
     return (
       <Animated.View entering={FadeInUp.springify()}>
-        <TouchableOpacity
-          style={[styles.emotionCard, { backgroundColor: `${color}15` }]}
-          onPress={() => router.push('/memory-detail', { memoryId: item.id })}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.emotionIconContainer, { backgroundColor: `${color}30` }]}>
-            <Ionicons name={icon} size={32} color={color} />
-          </View>
-          <View style={styles.emotionInfo}>
-            <Text style={[styles.emotionTitle, { color }]}>
-              {title}
-            </Text>
-            <View style={styles.emotionMeta}>
-              <Text style={styles.emotionDate}>{date}</Text>
-              {item.isAphasia && (
-                <View style={[styles.aphasiaTag, { backgroundColor: `${color}30` }]}>
-                  <Ionicons name="hand-left" size={10} color={color} />
-                  <Text style={[styles.aphasiaText, { color }]}>{quickMoodText}</Text>
+        <InlineDeleteReveal onDelete={() => deleteMemoryItem(item)}>
+          {(openBar) => (
+            <View style={[styles.emotionCard, { backgroundColor: `${color}15` }]}>
+              <Pressable
+                style={styles.emotionPressable}
+                onPress={() => router.push('/memory-detail', { memoryId: item.id })}
+                onLongPress={openBar}
+                delayLongPress={450}
+              >
+                <View style={[styles.emotionIconContainer, { backgroundColor: `${color}30` }]}>
+                  <Ionicons name={icon} size={32} color={color} />
                 </View>
-              )}
+                <View style={styles.emotionInfo}>
+                  <Text style={[styles.emotionTitle, { color }]}>{title}</Text>
+                  <View style={styles.emotionMeta}>
+                    <Text style={styles.emotionDate}>{date}</Text>
+                    {item.isAphasia && (
+                      <View style={[styles.aphasiaTag, { backgroundColor: `${color}30` }]}>
+                        <Ionicons name="hand-left" size={10} color={color} />
+                        <Text style={[styles.aphasiaText, { color }]}>{quickMoodText}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                {typeof item.emotionCount === 'number' && item.emotionCount > 0 ? (
+                  <View style={[styles.emotionCountBadge, { backgroundColor: color }]}>
+                    <Ionicons name="heart" size={10} color="#FFF" />
+                    <Text style={styles.emotionCountText}>{emotionCount}</Text>
+                  </View>
+                ) : null}
+              </Pressable>
             </View>
-          </View>
-          {typeof item.emotionCount === 'number' && item.emotionCount > 0 ? (
-            <View style={[styles.emotionCountBadge, { backgroundColor: color }]}>
-              <Ionicons name="heart" size={10} color="#FFF" />
-              <Text style={styles.emotionCountText}>{emotionCount}</Text>
-            </View>
-          ) : null}
-        </TouchableOpacity>
+          )}
+        </InlineDeleteReveal>
       </Animated.View>
     );
   }
@@ -318,55 +382,64 @@ export default function HomeScreen() {
 
     return (
       <Animated.View entering={FadeInDown.springify()}>
-        <TouchableOpacity
-          style={styles.imageCard}
-          onPress={() => router.push('/memory-detail', { memoryId: item.id })}
-          activeOpacity={0.9}
-        >
-          {/* 图片 */}
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: item.coverImage }}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-
-            {/* 顶部标签 */}
-            <View style={styles.cardOverlay}>
-              {item.isMultiUser && item.userCount > 1 && (
-                <View style={styles.multiUserBadge}>
-                  <GlowingCluster userCount={item.userCount} size={40} />
-                </View>
-              )}
-              {item.emotion && (
-                <View style={[styles.emotionBadge, { backgroundColor: `${EMOTION_COLORS[item.emotion]}30` }]}>
-                  <Ionicons
-                    name={EMOTION_ICONS[item.emotion]}
-                    size={14}
-                    color={EMOTION_COLORS[item.emotion]}
+        <InlineDeleteReveal onDelete={() => deleteMemoryItem(item)}>
+          {(openBar) => (
+            <View style={styles.imageCard}>
+              <Pressable
+                style={styles.imagePressable}
+                onPress={() => router.push('/memory-detail', { memoryId: item.id })}
+                onLongPress={openBar}
+                delayLongPress={450}
+              >
+                {/* 图片 */}
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={{ uri: item.coverImage }}
+                    style={styles.cardImage}
+                    resizeMode="cover"
                   />
-                </View>
-              )}
-            </View>
-          </View>
 
-          {/* 内容 */}
-          <View style={styles.cardContent}>
-            <Text style={styles.cardTitle}>{title}</Text>
-            <View style={styles.cardMeta}>
-              <View style={styles.metaItem}>
-                <Ionicons name="calendar" size={12} color="#999" />
-                <Text style={styles.metaText}>{date}</Text>
-              </View>
-              {location ? (
-              <View style={styles.metaItem}>
-                <Ionicons name="location" size={12} color="#999" />
-                <Text style={styles.metaText}>{location}</Text>
-              </View>
-              ) : null}
+                  {/* 顶部标签 */}
+                  <View style={styles.cardOverlay}>
+                    {item.isMultiUser && item.userCount > 1 && (
+                      <View style={styles.multiUserBadge}>
+                        <GlowingCluster userCount={item.userCount} size={40} />
+                      </View>
+                    )}
+                    {item.emotion && (
+                      <View
+                        style={[styles.emotionBadge, { backgroundColor: `${EMOTION_COLORS[item.emotion]}30` }]}
+                      >
+                        <Ionicons
+                          name={EMOTION_ICONS[item.emotion]}
+                          size={14}
+                          color={EMOTION_COLORS[item.emotion]}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* 内容 */}
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle}>{title}</Text>
+                  <View style={styles.cardMeta}>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="calendar" size={12} color="#999" />
+                      <Text style={styles.metaText}>{date}</Text>
+                    </View>
+                    {location ? (
+                      <View style={styles.metaItem}>
+                        <Ionicons name="location" size={12} color="#999" />
+                        <Text style={styles.metaText}>{location}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+              </Pressable>
             </View>
-          </View>
-        </TouchableOpacity>
+          )}
+        </InlineDeleteReveal>
       </Animated.View>
     );
   }
@@ -435,12 +508,14 @@ export default function HomeScreen() {
 
       {/* 记忆流 */}
       <FlatList
+        style={styles.timelineList}
         data={memories}
         extraData={i18n.language}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        ListFooterComponent={timelineListFooter}
         ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
       />
 
@@ -539,9 +614,12 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 4,
   },
+  timelineList: {
+    flex: 1,
+  },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 140,
+    paddingBottom: 8,
   },
   // 图片卡片样式
   imageCard: {
@@ -553,6 +631,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+  },
+  imagePressable: {
+    width: '100%',
   },
   imageContainer: {
     position: 'relative',
@@ -604,12 +685,14 @@ const styles = StyleSheet.create({
   },
   // 快速心情记录卡片样式
   quickMoodCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.03)',
+  },
+  quickMoodPressable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
   },
   quickMoodIconContainer: {
     width: 52,
@@ -649,10 +732,12 @@ const styles = StyleSheet.create({
   },
   // 情感卡片样式
   emotionCard: {
+    borderRadius: 16,
+  },
+  emotionPressable: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 16,
   },
   emotionIconContainer: {
     width: 60,

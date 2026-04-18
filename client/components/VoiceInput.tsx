@@ -8,6 +8,12 @@ import { getBackendBaseUrl } from '@/utils/backend';
 /** 与 expo-speech-recognition 的 ExpoSpeechRecognitionModule 一致的最小形状（不经由会 requireNativeModule 的包入口加载） */
 type NativeSpeechModule = {
   isRecognitionAvailable?: () => boolean;
+  /** Android 31+：是否具备端侧识别能力（与 requiresOnDeviceRecognition 搭配） */
+  supportsOnDeviceRecognition?: () => boolean;
+  /** Android 13+：查询端侧已安装/支持的识别语言（与 requiresOnDeviceRecognition 搭配） */
+  getSupportedLocales?: (options: {
+    androidRecognitionServicePackage?: string;
+  }) => Promise<{ locales: string[]; installedLocales: string[] }>;
   requestPermissionsAsync: () => Promise<{ granted: boolean }>;
   addListener: (
     event: string,
@@ -48,6 +54,43 @@ function getOptionalExpoSpeechNativeModule(): NativeSpeechModule | null {
 /** 是否在 Expo Go 中运行（Store Client 即官方 Expo Go 壳） */
 function isRunningInsideExpoGo(): boolean {
   return Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+}
+
+/** BCP-47 风格：统一小写、`_` → `-` */
+function normSpeechLangTag(tag: string): string {
+  return tag.trim().replace(/_/g, '-').toLowerCase();
+}
+
+function primarySpeechLang(tag: string): string {
+  const n = normSpeechLangTag(tag);
+  const i = n.indexOf('-');
+  return i === -1 ? n : n.slice(0, i);
+}
+
+/**
+ * 在端侧已安装语言列表中选一个与 desired 最匹配的；仅用于 requiresOnDeviceRecognition。
+ * 若无匹配返回 null（调用方应关闭端侧或提示下载离线包）。
+ */
+function pickOnDeviceSpeechLang(desired: string, installed: string[]): string | null {
+  if (!installed.length) return null;
+  const inst = installed.map((x) => ({ raw: x, norm: normSpeechLangTag(x) }));
+  const want = normSpeechLangTag(desired);
+  const hitExact = inst.find((x) => x.norm === want);
+  if (hitExact) return hitExact.raw;
+  const prim = primarySpeechLang(desired);
+  const hitPrimary = inst.find((x) => x.norm === prim || x.norm.startsWith(`${prim}-`));
+  if (hitPrimary) return hitPrimary.raw;
+  if (prim === 'zh') {
+    const zh = inst.find(
+      (x) =>
+        x.norm.startsWith('zh-') ||
+        x.norm === 'zh' ||
+        x.norm.includes('hans') ||
+        x.norm.includes('cmn')
+    );
+    if (zh) return zh.raw;
+  }
+  return null;
 }
 
 function getSpeechNativeModuleHint(): string {
@@ -319,6 +362,29 @@ export default function VoiceInput({
 
       speechListenersRef.current.push(
         ExpoSpeechRecognitionModule.addListener('error', (e) => {
+          const errCode =
+            e && typeof e === 'object' && 'error' in e && typeof (e as { error?: string }).error === 'string'
+              ? (e as { error: string }).error
+              : '';
+          const nativeCode =
+            e && typeof e === 'object' && 'code' in e && typeof (e as { code?: unknown }).code === 'number'
+              ? (e as { code: number }).code
+              : undefined;
+          /**
+           * Android SpeechRecognizer.ERROR_CLIENT(5)：常见于识别已结束或 stop() 与 onEnd 竞态。
+           * Release 不再打 warn（避免 logcat 误报）；开发包可 console.debug 看一眼。
+           */
+          const benignAndroidClient5 =
+            Platform.OS === 'android' &&
+            errCode === 'client' &&
+            nativeCode === 5 &&
+            (!deviceSpeechActiveRef.current || speechTranscriptRef.current.trim().length > 0);
+          if (benignAndroidClient5) {
+            if (typeof __DEV__ !== 'undefined' && __DEV__) {
+              console.debug('[VoiceInput] ignored benign Android ERROR_CLIENT(5)');
+            }
+            return;
+          }
           console.warn('expo-speech-recognition error', e);
           clearSpeechListeners();
           deviceSpeechActiveRef.current = false;
@@ -328,7 +394,23 @@ export default function VoiceInput({
           }
           setIsRecording(false);
           setSpeechEngine('none');
-          showToast(e.message || '语音识别失败 / Speech recognition failed', 'error');
+          const networkHint =
+            Platform.OS === 'android' && errCode === 'network'
+              ? '语音识别云端不可用（常见于网络环境）。已在 Android 13+ 优先使用端侧识别；若仍失败，请在系统设置中为中文下载离线语音数据，或改用文字输入。'
+              : '';
+          const langHint =
+            errCode === 'language-not-supported'
+              ? '当前识别引擎不支持所选语言。请在系统设置中下载该语言的离线语音，或到设置 → 系统语言中切换为已安装离线包的语言后再试。'
+              : '';
+          showToast(
+            langHint ||
+              networkHint ||
+              (typeof e === 'object' && e && 'message' in e && typeof (e as { message?: string }).message === 'string'
+                ? (e as { message: string }).message
+                : '') ||
+              '语音识别失败 / Speech recognition failed',
+            'error'
+          );
         })
       );
 
@@ -353,7 +435,7 @@ export default function VoiceInput({
 
       const { getLocales } = await import('expo-localization');
       const locales = getLocales();
-      const lang = locales[0]?.languageTag?.replace('_', '-') || 'en-US';
+      let lang = locales[0]?.languageTag?.replace('_', '-') || 'en-US';
 
       const androidApi =
         Platform.OS === 'android' ? parseInt(String(Platform.Version), 10) : 0;
@@ -361,11 +443,62 @@ export default function VoiceInput({
         Platform.OS === 'ios' ||
         (Platform.OS === 'android' && !Number.isNaN(androidApi) && androidApi >= 33);
 
+      /**
+       * Android 13+：优先端侧识别，避免默认 Google 云端（国内常报 network / code 2）。
+       * 端侧只认「已安装」语言包；expo-localization 的 zh-Hans-CN 等若未安装会报 language-not-supported，
+       * 需用 getSupportedLocales + installedLocales 对齐到系统实际可用的 tag。
+       */
+      const supportsOnDevice =
+        typeof ExpoSpeechRecognitionModule.supportsOnDeviceRecognition === 'function'
+          ? ExpoSpeechRecognitionModule.supportsOnDeviceRecognition()
+          : undefined;
+      let useAndroidOnDevice =
+        Platform.OS === 'android' &&
+        !Number.isNaN(androidApi) &&
+        androidApi >= 33 &&
+        supportsOnDevice !== false;
+
+      /** Android 12–12L：无 createOnDeviceSpeechRecognizer；若系统回报支持端侧，可尝试绑定 AS 服务 */
+      const useAndroidAsPackage =
+        Platform.OS === 'android' &&
+        !Number.isNaN(androidApi) &&
+        androidApi >= 31 &&
+        androidApi < 33 &&
+        supportsOnDevice === true;
+
+      if (Platform.OS === 'android' && useAndroidOnDevice && typeof ExpoSpeechRecognitionModule.getSupportedLocales === 'function') {
+        try {
+          let installed: string[] = [];
+          try {
+            const rAs = await ExpoSpeechRecognitionModule.getSupportedLocales({
+              androidRecognitionServicePackage: 'com.google.android.as',
+            });
+            installed = Array.isArray(rAs.installedLocales) ? rAs.installedLocales : [];
+          } catch {
+            /* AS 不可用时再试默认服务 */
+          }
+          if (!installed.length) {
+            const r0 = await ExpoSpeechRecognitionModule.getSupportedLocales({});
+            installed = Array.isArray(r0.installedLocales) ? r0.installedLocales : [];
+          }
+          const picked = pickOnDeviceSpeechLang(lang, installed);
+          if (picked) {
+            lang = picked;
+          } else {
+            useAndroidOnDevice = false;
+          }
+        } catch {
+          useAndroidOnDevice = false;
+        }
+      }
+
       ExpoSpeechRecognitionModule.start({
         lang,
         interimResults: true,
         continuous,
         addsPunctuation: true,
+        ...(useAndroidOnDevice ? { requiresOnDeviceRecognition: true as const } : {}),
+        ...(useAndroidAsPackage ? { androidRecognitionServicePackage: 'com.google.android.as' } : {}),
       });
 
       deviceSpeechActiveRef.current = true;
@@ -698,8 +831,14 @@ export default function VoiceInput({
   const stopRecording = () => {
     void (async () => {
       if (deviceSpeechActiveRef.current) {
+        const mod = getOptionalExpoSpeechNativeModule();
         try {
-          getOptionalExpoSpeechNativeModule()?.stop?.();
+          /** Android：立刻 stop 易与引擎收尾竞态触发 ERROR_CLIENT(5)；微延迟更稳 */
+          if (Platform.OS === 'android') {
+            await new Promise<void>((r) => setTimeout(r, 40));
+            if (!deviceSpeechActiveRef.current) return;
+          }
+          mod?.stop?.();
         } catch {
           deviceSpeechActiveRef.current = false;
           setIsRecording(false);

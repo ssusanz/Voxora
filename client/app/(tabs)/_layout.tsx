@@ -11,10 +11,11 @@ import { useTranslation } from 'react-i18next';
 import VoiceInput from '@/components/VoiceInput';
 import { useToast } from '@/hooks/useToast';
 import {
-  interpretTabVoiceCommand,
+  interpretTabVoiceIntent,
   routeForTabVoiceTarget,
   type TabVoiceTarget,
 } from '@/utils/voiceTabCommand';
+import { fetchMemoriesForVoiceMatch, pickMemoryByVoiceQuery } from '@/utils/voiceMemoryMatch';
 
 function TabBarIcon({ name, color, focused }: { name: keyof typeof Ionicons.glyphMap; color: string; focused: boolean }) {
   return (
@@ -33,7 +34,7 @@ type AddButtonProps = {
 function AddButton(_props: AddButtonProps) {
   const { t, i18n } = useTranslation();
   const router = useSafeRouter();
-  const { showSuccess, showInfo } = useToast();
+  const { showSuccess, showInfo, showError } = useToast();
   const [showMenu, setShowMenu] = useState(false);
   const [showVoiceCommand, setShowVoiceCommand] = useState(false);
   const longPressConsumed = useRef(false);
@@ -51,16 +52,47 @@ function AddButton(_props: AddButtonProps) {
   }, []);
 
   const onVoiceTranscribed = useCallback(
-    (text: string) => {
-      const target = interpretTabVoiceCommand(text);
-      if (!target) {
+    async (text: string) => {
+      const intent = interpretTabVoiceIntent(text);
+      if (!intent) {
         showInfo(t('tab.voiceCommandUnknown'));
         return;
       }
-      showSuccess(t(toastKeyForTarget(target)));
-      router.push(routeForTabVoiceTarget(target));
+      if (intent.type === 'route') {
+        showSuccess(t(toastKeyForTarget(intent.target)));
+        router.push(routeForTabVoiceTarget(intent.target));
+        return;
+      }
+
+      const query = intent.query.trim();
+      if (!query) {
+        showInfo(t('tab.voiceMemoryQueryEmpty'));
+        return;
+      }
+
+      try {
+        const memories = await fetchMemoriesForVoiceMatch();
+        const picked = pickMemoryByVoiceQuery(memories, query);
+        if (picked === 'none') {
+          showInfo(t('tab.voiceMemoryNotFound'));
+          return;
+        }
+        if (picked === 'ambiguous') {
+          showInfo(t('tab.voiceMemoryAmbiguous'));
+          return;
+        }
+        if (intent.type === 'find-memory') {
+          showSuccess(t('tab.voiceOpenFindMemory'));
+          router.push('/memory-detail', { memoryId: picked.id });
+        } else {
+          showSuccess(t('tab.voiceOpenVlogForMemory'));
+          router.push('/vlog', { memoryId: picked.id });
+        }
+      } catch {
+        showError(t('tab.voiceMemoryLoadFailed'));
+      }
     },
-    [router, showInfo, showSuccess, t, toastKeyForTarget]
+    [router, showError, showInfo, showSuccess, t, toastKeyForTarget]
   );
 
   const handleAddMemoryPress = () => {
@@ -102,7 +134,10 @@ function AddButton(_props: AddButtonProps) {
           end={{ x: 1, y: 1 }}
           style={styles.addButton}
         >
-          <Ionicons name="add" size={28} color="#FFFFFF" />
+          <View style={styles.addFabIconStack}>
+            <Ionicons name="mic" size={18} color="#FFFFFF" />
+            <Ionicons name="pencil" size={15} color="#FFFFFF" style={styles.addFabPen} />
+          </View>
         </LinearGradient>
       </TouchableOpacity>
 
@@ -268,11 +303,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  /** 与两侧 Tab 图标行对齐；略小的 marginTop 让按钮比上一版稍靠上 */
   addButtonWrapper: {
-    position: 'relative',
-    top: -20,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: Platform.OS === 'ios' ? 2 : 1,
+  },
+  addFabIconStack: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addFabPen: {
+    marginTop: 1,
   },
   addButton: {
     width: 56,
