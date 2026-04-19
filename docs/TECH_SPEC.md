@@ -3,7 +3,7 @@
 **适用版本：v1.3.0**  
 **文档性质：架构、模块、数据流与运维要点（面向开发与实施人员）**
 
-*English: [TECH_SPEC_v1.2.1_EN.md](./TECH_SPEC_v1.2.1_EN.md)*
+*English: [TECH_SPEC_EN.md](./TECH_SPEC_EN.md)*
 
 ---
 
@@ -161,7 +161,7 @@ POST /api/v1/future-plans/summarize
 ## 7. 版本与文档维护
 
 - 本文档与 **发行标签（如 `语音识别真机ok` / `v1.3.0`）**、**`package.json` / `client/app.config.ts` 的 version 字段** 应对齐。  
-- 功能变更时请同步更新：本技术说明书、`USER_MANUAL_v1.2.1.md`（或下一版本号文件）、以及 `CHANGELOG`（若团队采用）。
+- 功能变更时请同步更新：本技术说明书、`USER_MANUAL.md`、以及 `CHANGELOG`（若团队采用）。
 
 ---
 

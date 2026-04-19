@@ -3,7 +3,7 @@
 **适用版本：v1.3.0**  
 **文档性质：面向最终用户的功能与操作说明**
 
-*English: [USER_MANUAL_v1.2.1_EN.md](./USER_MANUAL_v1.2.1_EN.md)*
+*English: [USER_MANUAL_EN.md](./USER_MANUAL_EN.md)*
 
 ---
 

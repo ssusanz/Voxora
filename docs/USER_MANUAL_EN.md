@@ -3,7 +3,7 @@
 **Applies to: v1.3.0**  
 **Audience: end users — features and how to use them**
 
-*Chinese edition: [USER_MANUAL_v1.2.1.md](./USER_MANUAL_v1.2.1.md)*
+*Chinese edition: [USER_MANUAL.md](./USER_MANUAL.md)*
 
 ---
 

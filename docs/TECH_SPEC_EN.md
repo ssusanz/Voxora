@@ -3,7 +3,7 @@
 **Applies to: v1.3.0**  
 **Audience: engineering and implementation — architecture, modules, data flow, operations**
 
-*Chinese edition: [TECH_SPEC_v1.2.1.md](./TECH_SPEC_v1.2.1.md)*
+*Chinese edition: [TECH_SPEC.md](./TECH_SPEC.md)*
 
 ---
 
@@ -161,7 +161,7 @@ Write FuturePlan.summary (+ summaryUpdatedAt)
 ## 7. Versioning and doc maintenance
 
 - Keep this file aligned with **release tags** (e.g. `语音识别真机ok` / `v1.3.0`) and **`version` in `package.json` / `client/app.config.ts`**.  
-- When behavior changes, update this spec, `USER_MANUAL_v1.2.1_EN.md` / `USER_MANUAL_v1.2.1.md` (or the next versioned filenames), and `CHANGELOG` if your team uses one.
+- When behavior changes, update this spec, `USER_MANUAL_EN.md` / `USER_MANUAL.md`, and `CHANGELOG` if your team uses one.
 
 ---
 
