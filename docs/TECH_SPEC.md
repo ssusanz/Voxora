@@ -1,6 +1,6 @@
 # Voxora 技术说明书
 
-**适用版本：v1.3.0**  
+**适用版本：v1.3.1**  
 **文档性质：架构、模块、数据流与运维要点（面向开发与实施人员）**
 
 *English: [TECH_SPEC_EN.md](./TECH_SPEC_EN.md)*
@@ -14,7 +14,7 @@
 | 形态 | **pnpm workspace monorepo** |
 | `client/` | **Expo SDK 54** + **Expo Router** + React Native；样式以 **Uniwind + Tailwind** 为主（`client/global.css`） |
 | `server/` | **Node.js + Express**，REST API 前缀 **`/api/v1`** |
-| 根 `package.json` | 聚合脚本（如 `lint`）；**语义化版本号与 `client/app.config.ts` 中 `version` 应对齐**（当前 v1.3.0） |
+| 根 `package.json` | 聚合脚本（如 `lint`）；**语义化版本号与 `client/app.config.ts` 中 `version` 应对齐**（当前 v1.3.1） |
 
 本地开发常见入口：按仓库约定使用 **`coze dev`** 或各目录脚本；生产构建参考 `.cozeproj` 与 `README.md` 说明（**勿改** `.cozeproj` / `.coze` 中平台注入逻辑）。
 
@@ -47,15 +47,16 @@
 - 模块：`client/utils/meetFutureStorage.ts`  
 - **AsyncStorage** 键：`voxora_meet_future_plans_v1`  
 - 类型要点：  
-  - `FuturePlan`：`id`, `kind`（`trip` | `birthday` | `party` | `gathering`）, `title`, `dateLabel`, `status`（`brainstorm` | `locked`）, `entries?`, `summary?`, `summaryUpdatedAt?`  
+  - `FuturePlan`：`id`, `kind`, `title`, `dateLabel`, `status`, `entries?`, `todos?`（`FuturePlanTodo`：`text`, `done`, `sourceEntryId?`）, `summary?`, `summaryUpdatedAt?`  
   - `FuturePlanEntry`：`authorLabel`, `text`, `source`（`text` | `voice`）, `createdAt`, `id`  
-- API：`loadFuturePlans`, `saveFuturePlans`, `getFuturePlanById`, `updateFuturePlan`。
+- API：`loadFuturePlans`, `saveFuturePlans`, `getFuturePlanById`, `updateFuturePlan`。详情页 **`POST /api/v1/future-plans/todo-from-entry`**（Gemini）从单条留言生成待办后写回 `todos`。
 
 ### 2.5 遇见未来：详情与小结
 
 - 页面：`client/screens/meet-future-detail/index.tsx`  
 - 路由：`client/app/meet-future-detail.tsx` → 默认导出上述 screen。  
 - **留言**：`updateFuturePlan` 追加 `entries`；语音经 **`VoiceInput` `mode="transcribe"`** 写入 `source: 'voice'`。  
+- **待办**：每条留言下可触发 **`POST .../future-plans/todo-from-entry`**，返回 `todoText` 后追加到 `todos`；点击行首方框切换 `done`（仅本地持久化）。  
 - **小结**：`POST ${getBackendBaseUrl()}/api/v1/future-plans/summarize`，请求体含 `title`、`kind`（展示用已本地化字符串）、`entries`（`authorLabel` + `text`）。成功则写回 `summary` / `summaryUpdatedAt`。  
 - **标题编辑**：本地 `updateFuturePlan` 更新 `title`；栈顶 **原生 Stack title** 仍可能显示 i18n 的 `home.futureDetailTitle`（与卡片标题独立，可按产品要求后续收敛）。
 
@@ -160,7 +161,7 @@ POST /api/v1/future-plans/summarize
 
 ## 7. 版本与文档维护
 
-- 本文档与 **发行标签（如 `语音识别真机ok` / `v1.3.0`）**、**`package.json` / `client/app.config.ts` 的 version 字段** 应对齐。  
+- 本文档与 **发行标签（如 `语音识别真机ok` / `v1.3.1`）**、**`package.json` / `client/app.config.ts` 的 version 字段** 应对齐。  
 - 功能变更时请同步更新：本技术说明书、`USER_MANUAL.md`、以及 `CHANGELOG`（若团队采用）。
 
 ---

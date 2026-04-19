@@ -26,6 +26,7 @@ import {
   updateFuturePlan,
   type FuturePlan,
   type FuturePlanEntry,
+  type FuturePlanTodo,
 } from '@/utils/meetFutureStorage';
 import { useToast } from '@/hooks/useToast';
 
@@ -51,6 +52,7 @@ export default function MeetFutureDetailScreen() {
   const [authorKey, setAuthorKey] = useState<AuthorKey>('me');
   const [showVoice, setShowVoice] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
+  const [addingTodoForEntryId, setAddingTodoForEntryId] = useState<string | null>(null);
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
 
@@ -103,7 +105,7 @@ export default function MeetFutureDetailScreen() {
   useEffect(() => {
     const tmr = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
     return () => clearTimeout(tmr);
-  }, [plan?.entries?.length]);
+  }, [plan?.entries?.length, plan?.todos?.length]);
 
   useEffect(() => {
     if (!titleEditing) return;
@@ -162,6 +164,74 @@ export default function MeetFutureDetailScreen() {
     [planId, authorKey, authorLabel, reload]
   );
 
+  const kindLabel = useMemo(() => {
+    if (!plan) return '';
+    return t(`home.futureKind_${plan.kind}`);
+  }, [plan, t]);
+
+  const addTodoFromEntry = useCallback(
+    async (entry: FuturePlanEntry) => {
+      if (!plan || !planId) return;
+      setAddingTodoForEntryId(entry.id);
+      try {
+        const base = getBackendBaseUrl();
+        const res = await fetch(`${base}/api/v1/future-plans/todo-from-entry`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planTitle: plan.title,
+            planKind: kindLabel,
+            authorLabel: entry.authorLabel,
+            entryText: entry.text,
+          }),
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          todoText?: string;
+          message?: string;
+          error?: string;
+        };
+        if (!res.ok || !json.ok || typeof json.todoText !== 'string') {
+          throw new Error(
+            typeof json.message === 'string' ? json.message : json.error || 'bad_response'
+          );
+        }
+        const row: FuturePlanTodo = {
+          id: entryId(),
+          text: json.todoText.trim(),
+          done: false,
+          createdAt: new Date().toISOString(),
+          sourceEntryId: entry.id,
+        };
+        await updateFuturePlan(planId, (prev) => ({
+          ...prev,
+          todos: [...(prev.todos || []), row],
+        }));
+        await reload();
+        showSuccess(t('home.futureDetailTodoAdded'));
+      } catch {
+        showError(t('home.futureDetailTodoFail'));
+      } finally {
+        setAddingTodoForEntryId(null);
+      }
+    },
+    [plan, planId, kindLabel, t, showError, showSuccess, reload]
+  );
+
+  const toggleTodo = useCallback(
+    async (todoId: string) => {
+      if (!planId) return;
+      await updateFuturePlan(planId, (prev) => ({
+        ...prev,
+        todos: (prev.todos || []).map((row) =>
+          row.id === todoId ? { ...row, done: !row.done } : row
+        ),
+      }));
+      await reload();
+    },
+    [planId, reload]
+  );
+
   const onSummarize = useCallback(async () => {
     if (!plan || !planId) return;
     const entries = plan.entries || [];
@@ -198,11 +268,6 @@ export default function MeetFutureDetailScreen() {
       setSummarizing(false);
     }
   }, [plan, planId, t, showError, showSuccess, reload]);
-
-  const kindLabel = useMemo(() => {
-    if (!plan) return '';
-    return t(`home.futureKind_${plan.kind}`);
-  }, [plan, t]);
 
   if (!planId || missing || (!plan && !loading)) {
     return (
@@ -343,7 +408,7 @@ export default function MeetFutureDetailScreen() {
 
           {entries.length === 0 ? (
             <View style={styles.emptyBubble}>
-              <Text style={styles.emptyEmoji}>💬</Text>
+              <Ionicons name="chatbubbles-outline" size={36} color="#CCC" style={styles.emptyBubbleIcon} />
               <Text style={styles.emptyTitle}>{t('home.futureDetailEmptyTitle')}</Text>
               <Text style={styles.emptyBody}>{t('home.futureDetailEmptyBody')}</Text>
             </View>
@@ -353,19 +418,62 @@ export default function MeetFutureDetailScreen() {
                 <View style={styles.bubbleAvatar}>
                   <Text style={styles.bubbleAvatarText}>{e.authorLabel.slice(0, 1)}</Text>
                 </View>
-                <View style={styles.bubble}>
-                  <View style={styles.bubbleHead}>
-                    <Text style={styles.bubbleAuthor}>{e.authorLabel}</Text>
-                    {e.source === 'voice' ? (
-                      <View style={styles.voiceTag}>
-                        <Ionicons name="mic" size={12} color="#7C6AFF" />
-                        <Text style={styles.voiceTagText}>{t('home.futureDetailVoiceTag')}</Text>
-                      </View>
-                    ) : null}
+                <View style={styles.bubbleCol}>
+                  <View style={styles.bubble}>
+                    <View style={styles.bubbleHead}>
+                      <Text style={styles.bubbleAuthor}>{e.authorLabel}</Text>
+                      {e.source === 'voice' ? (
+                        <View style={styles.voiceTag}>
+                          <Ionicons name="mic" size={12} color="#7C6AFF" />
+                          <Text style={styles.voiceTagText}>{t('home.futureDetailVoiceTag')}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.bubbleText}>{e.text}</Text>
                   </View>
-                  <Text style={styles.bubbleText}>{e.text}</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.addTodoBtn,
+                      !!addingTodoForEntryId && addingTodoForEntryId !== e.id && styles.addTodoBtnDim,
+                    ]}
+                    disabled={!!addingTodoForEntryId}
+                    onPress={() => void addTodoFromEntry(e)}
+                    activeOpacity={0.85}
+                  >
+                    {addingTodoForEntryId === e.id ? (
+                      <>
+                        <ActivityIndicator size="small" color="#7C6AFF" />
+                        <Text style={styles.addTodoBtnText}>{t('home.futureDetailTodoAdding')}</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="add-circle-outline" size={16} color="#7C6AFF" />
+                        <Text style={styles.addTodoBtnText}>{t('home.futureDetailAddTodoFromEntry')}</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 </View>
               </View>
+            ))
+          )}
+
+          <Text style={styles.todosSectionLabel}>{t('home.futureDetailTodosLabel')}</Text>
+          {(plan.todos || []).length === 0 ? (
+            <Text style={styles.todosEmpty}>{t('home.futureDetailTodosEmpty')}</Text>
+          ) : (
+            (plan.todos || []).map((todo) => (
+              <Pressable
+                key={todo.id}
+                onPress={() => void toggleTodo(todo.id)}
+                style={styles.todoRow}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: todo.done }}
+              >
+                <View style={[styles.todoCheck, todo.done && styles.todoCheckOn]}>
+                  {todo.done ? <Ionicons name="checkmark" size={14} color="#FFF" /> : null}
+                </View>
+                <Text style={[styles.todoText, todo.done && styles.todoTextDone]}>{todo.text}</Text>
+              </Pressable>
             ))
           )}
 
@@ -396,20 +504,22 @@ export default function MeetFutureDetailScreen() {
 
         <View style={[styles.composer, { paddingBottom: insets.bottom + 10 }]}>
           <Text style={styles.composerLabel}>{t('home.futureDetailSpeakingAs')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.authorRow}>
-            {AUTHOR_KEYS.map((k) => {
-              const on = authorKey === k;
-              return (
-                <Pressable
-                  key={k}
-                  onPress={() => setAuthorKey(k)}
-                  style={[styles.authorChip, on && styles.authorChipOn]}
-                >
-                  <Text style={[styles.authorChipText, on && styles.authorChipTextOn]}>{authorLabel(k)}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.authorRow}>
+              {AUTHOR_KEYS.map((k) => {
+                const on = authorKey === k;
+                return (
+                  <Pressable
+                    key={k}
+                    onPress={() => setAuthorKey(k)}
+                    style={[styles.authorChip, on && styles.authorChipOn]}
+                  >
+                    <Text style={[styles.authorChipText, on && styles.authorChipTextOn]}>{authorLabel(k)}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
           <View style={styles.inputRow}>
             <TextInput
               value={draft}
@@ -556,8 +666,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     marginBottom: 12,
   },
-  emptyEmoji: {
-    fontSize: 36,
+  emptyBubbleIcon: {
     marginBottom: 8,
   },
   emptyTitle: {
@@ -633,6 +742,81 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: '#333',
+  },
+  bubbleCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  addTodoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(124,106,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(124,106,255,0.25)',
+  },
+  addTodoBtnDim: {
+    opacity: 0.45,
+  },
+  addTodoBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#5B3EBA',
+  },
+  todosSectionLabel: {
+    marginTop: 18,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#5B3EBA',
+    letterSpacing: 0.5,
+  },
+  todosEmpty: {
+    fontSize: 13,
+    color: '#AAA',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  todoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8E8EE',
+  },
+  todoCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#C4B8F5',
+    marginTop: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FAFAFC',
+  },
+  todoCheckOn: {
+    backgroundColor: '#43A047',
+    borderColor: '#43A047',
+  },
+  todoText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#333',
+  },
+  todoTextDone: {
+    color: '#888',
+    textDecorationLine: 'line-through',
   },
   summarizeBtn: {
     marginTop: 8,

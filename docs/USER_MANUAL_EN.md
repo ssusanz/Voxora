@@ -1,6 +1,6 @@
 # Voxora User Guide
 
-**Applies to: v1.3.0**  
+**Applies to: v1.3.1**  
 **Audience: end users — features and how to use them**
 
 *Chinese edition: [USER_MANUAL.md](./USER_MANUAL.md)*
@@ -84,10 +84,11 @@ You can switch languages where the app supports it; some copy is localized per l
 
 1. **Tap** the card to open **Meet the Future · detail**.  
 2. The top shows **that card’s title**, type, and date; use the **pencil** to edit the title (save / cancel).  
-3. **Thread**  
+3. **Everyone chimes in**  
    - Choose **who is speaking** (e.g. Me, Grandma, Dad, Mom).  
    - **Text**: type in the composer and send.  
    - **Voice**: tap the mic; after transcription, a message appears (with a **Voice** tag).  
+   - **To-dos**: next to each message, **Add to to-do** (requires **Gemini** on the server) turns that line into one actionable item. Tap the square on the left of a to-do to mark it **done**.  
 4. **Summarize**  
    - You need **at least one message** first (otherwise you’ll see a hint).  
    - The summary rolls up what’s on the card; if the server has **Gemini** configured, the service prefers **AI** output (structured, **Chinese** body in the current product prompt). If not, a **local template** still returns readable text.  
@@ -141,7 +142,7 @@ A: Copy is localized per language — that is expected.
 
 ## 9. Version and this document
 
-- This guide matches **app version v1.3.0**.  
+- This guide matches **app version v1.3.1**.  
 - After upgrades, menus, permissions text, or cloud behavior may change — follow the in-app UI.
 
 Send product feedback or bugs through your team’s usual channel (issue tracker, email, or internal chat).

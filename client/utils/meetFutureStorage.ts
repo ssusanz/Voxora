@@ -13,6 +13,16 @@ export type FuturePlanEntry = {
   source: 'text' | 'voice';
 };
 
+/** 从家人发言提炼的待办（可勾选完成） */
+export type FuturePlanTodo = {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: string;
+  /** 由哪条留言生成 */
+  sourceEntryId?: string;
+};
+
 export type FuturePlan = {
   id: string;
   kind: FuturePlanKind;
@@ -20,6 +30,7 @@ export type FuturePlan = {
   dateLabel: string;
   status: 'brainstorm' | 'locked';
   entries?: FuturePlanEntry[];
+  todos?: FuturePlanTodo[];
   summary?: string;
   summaryUpdatedAt?: string;
 };
@@ -31,6 +42,7 @@ function normalizePlanRow(x: FuturePlan): FuturePlan {
     ...x,
     kind: KIND_ORDER.includes(x.kind) ? x.kind : 'gathering',
     entries: Array.isArray(x.entries) ? x.entries : [],
+    todos: Array.isArray(x.todos) ? x.todos : [],
   };
 }
 

@@ -1,6 +1,6 @@
 # Voxora Technical Specification
 
-**Applies to: v1.3.0**  
+**Applies to: v1.3.1**  
 **Audience: engineering and implementation — architecture, modules, data flow, operations**
 
 *Chinese edition: [TECH_SPEC.md](./TECH_SPEC.md)*
@@ -14,7 +14,7 @@
 | Shape | **pnpm workspace monorepo** |
 | `client/` | **Expo SDK 54** + **Expo Router** + React Native; styling mainly **Uniwind + Tailwind** (`client/global.css`) |
 | `server/` | **Node.js + Express**, REST prefix **`/api/v1`** |
-| Root `package.json` | Aggregates scripts (e.g. `lint`); **keep semver aligned** with **`version` in `client/app.config.ts`** (currently v1.3.0) |
+| Root `package.json` | Aggregates scripts (e.g. `lint`); **keep semver aligned** with **`version` in `client/app.config.ts`** (currently v1.3.1) |
 
 Typical local dev: **`coze dev`** or per-package scripts per repo rules; production build flows live under `.cozeproj` / `README.md` (**do not edit** Coze-injected `.cozeproj` / `.coze` mechanics).
 
@@ -47,15 +47,16 @@ Typical local dev: **`coze dev`** or per-package scripts per repo rules; product
 - Module: `client/utils/meetFutureStorage.ts`  
 - **AsyncStorage** key: `voxora_meet_future_plans_v1`  
 - Types (summary):  
-  - `FuturePlan`: `id`, `kind` (`trip` | `birthday` | `party` | `gathering`), `title`, `dateLabel`, `status` (`brainstorm` | `locked`), optional `entries`, `summary`, `summaryUpdatedAt`  
+  - `FuturePlan`: `id`, `kind`, `title`, `dateLabel`, `status`, optional `entries`, optional `todos` (`FuturePlanTodo`: `text`, `done`, optional `sourceEntryId`), `summary`, `summaryUpdatedAt`  
   - `FuturePlanEntry`: `authorLabel`, `text`, `source` (`text` | `voice`), `createdAt`, `id`  
-- Helpers: `loadFuturePlans`, `saveFuturePlans`, `getFuturePlanById`, `updateFuturePlan`.
+- Helpers: `loadFuturePlans`, `saveFuturePlans`, `getFuturePlanById`, `updateFuturePlan`. Detail screen calls **`POST /api/v1/future-plans/todo-from-entry`** (Gemini) to append a to-do from one entry.
 
 ### 2.5 Detail screen and summarize
 
 - Screen: `client/screens/meet-future-detail/index.tsx`  
 - Route file: `client/app/meet-future-detail.tsx` → default export of the screen above.  
 - **Messages**: `updateFuturePlan` appends `entries`; voice uses **`VoiceInput` `mode="transcribe"`** → `source: 'voice'`.  
+- **To-dos from a message**: `POST .../future-plans/todo-from-entry` with `planTitle`, `planKind`, `authorLabel`, `entryText`; response `todoText` is stored in `todos` with `done: false`. Toggle `done` in local storage only.  
 - **Summarize**: `POST ${getBackendBaseUrl()}/api/v1/future-plans/summarize` with JSON `title`, `kind` (already localized display string), `entries` (`authorLabel` + `text`). On success, persist `summary` / `summaryUpdatedAt`.  
 - **Title edit**: `updateFuturePlan` updates `title` locally; the stack’s **native title** may still show i18n `home.futureDetailTitle` (independent of card title — can be unified later if product wants).
 
@@ -160,7 +161,7 @@ Write FuturePlan.summary (+ summaryUpdatedAt)
 
 ## 7. Versioning and doc maintenance
 
-- Keep this file aligned with **release tags** (e.g. `语音识别真机ok` / `v1.3.0`) and **`version` in `package.json` / `client/app.config.ts`**.  
+- Keep this file aligned with **release tags** (e.g. `语音识别真机ok` / `v1.3.1`) and **`version` in `package.json` / `client/app.config.ts`**.  
 - When behavior changes, update this spec, `USER_MANUAL_EN.md` / `USER_MANUAL.md`, and `CHANGELOG` if your team uses one.
 
 ---

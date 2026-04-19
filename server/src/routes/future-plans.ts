@@ -100,4 +100,59 @@ router.post('/summarize', async (req, res) => {
   }
 });
 
+function sanitizeTodoText(raw: string): string {
+  let s = raw.replace(/\r\n/g, '\n').split('\n')[0]?.trim() ?? '';
+  s = s.replace(/^[\s"'「『（]+|[\s"'」』）]+$/g, '').trim();
+  if (s.length > 120) {
+    return `${s.slice(0, 119)}…`;
+  }
+  return s;
+}
+
+/** 从单条家人发言提炼 1 条可执行待办（需 Gemini） */
+router.post('/todo-from-entry', async (req, res) => {
+  try {
+    const planTitle =
+      typeof req.body?.planTitle === 'string' ? req.body.planTitle.trim() : '';
+    const planKind =
+      typeof req.body?.planKind === 'string' ? req.body.planKind.trim() : '';
+    const authorLabel =
+      typeof req.body?.authorLabel === 'string' ? req.body.authorLabel.trim() : '家人';
+    const entryText =
+      typeof req.body?.entryText === 'string' ? req.body.entryText.trim() : '';
+
+    if (!planTitle || !entryText) {
+      res.status(400).json({ ok: false, error: 'missing_plan_title_or_entry_text' });
+      return;
+    }
+
+    if (!isGeminiSummarizeConfigured()) {
+      res.status(503).json({
+        ok: false,
+        error: 'gemini_not_configured',
+        message: '服务端未配置 GEMINI_API_KEY，无法从发言生成待办。',
+      });
+      return;
+    }
+
+    const prompt =
+      `你是家庭活动策划助手。一家人在讨论活动「${planTitle}」` +
+      (planKind ? `（类型：${planKind}）` : '') +
+      `。\n\n家人「${authorLabel}」说：\n「${entryText}」\n\n` +
+      `请从这句话里提炼 **恰好 1 条** 可执行、可核对的待办事项（中文）。\n` +
+      `要求：不超过 40 个汉字为宜；不要编号、不要引号、不要前缀「待办：」、不要解释或换行；只输出这一条待办文本本身。`;
+
+    const raw = await geminiGenerateFreeform(prompt);
+    const todoText = sanitizeTodoText(raw);
+    if (!todoText) {
+      res.status(500).json({ ok: false, error: 'empty_todo' });
+      return;
+    }
+    res.json({ ok: true, todoText });
+  } catch (e) {
+    console.error('[future-plans] todo-from-entry error:', e);
+    res.status(500).json({ ok: false, error: 'todo_from_entry_failed' });
+  }
+});
+
 export default router;

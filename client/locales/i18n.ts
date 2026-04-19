@@ -151,7 +151,7 @@ const zhCN = {
     "futureMemberMom": "妈妈",
     "futureDetailTitle": "遇见未来",
     "futureDetailMissing": "找不到这条「未来卡片」，可能已被删除。",
-    "futureDetailDiscussLabel": "家人留言板",
+    "futureDetailDiscussLabel": "七嘴八舌",
     "futureDetailDiscussSub": "打字或语音，随时丢想法进来；最后点「小结」把大家意见收成一份方案。",
     "futureDetailSummaryBlock": "小结（方案建议）",
     "futureDetailSummaryAt": "生成于 {{time}}",
@@ -168,7 +168,13 @@ const zhCN = {
     "futureDetailSummaryDone": "小结已更新",
     "futureDetailSummaryFail": "小结生成失败，请检查网络或稍后重试",
     "futureDetailEditTitle": "编辑标题",
-    "futureDetailTitleEmpty": "请先填写标题"
+    "futureDetailTitleEmpty": "请先填写标题",
+    "futureDetailTodosLabel": "待办事项",
+    "futureDetailTodosEmpty": "暂无待办，可在留言下方生成。",
+    "futureDetailAddTodoFromEntry": "增加到待办事项",
+    "futureDetailTodoAdding": "分析中…",
+    "futureDetailTodoAdded": "已加入待办",
+    "futureDetailTodoFail": "生成待办失败，请检查网络或服务端 GEMINI_API_KEY"
   },
   "family": {
     "title": "家庭空间",
@@ -596,7 +602,7 @@ const en = {
     "futureMemberMom": "Mom",
     "futureDetailTitle": "Meet the Future",
     "futureDetailMissing": "This future card could not be found. It may have been removed.",
-    "futureDetailDiscussLabel": "Family pinboard",
+    "futureDetailDiscussLabel": "Everyone chimes in",
     "futureDetailDiscussSub": "Type or speak anytime. Tap Summarize to turn everyone's notes into a plan.",
     "futureDetailSummaryBlock": "Summary (plan ideas)",
     "futureDetailSummaryAt": "Generated {{time}}",
@@ -613,7 +619,13 @@ const en = {
     "futureDetailSummaryDone": "Summary updated",
     "futureDetailSummaryFail": "Could not generate summary. Check network and try again.",
     "futureDetailEditTitle": "Edit title",
-    "futureDetailTitleEmpty": "Add a title first"
+    "futureDetailTitleEmpty": "Add a title first",
+    "futureDetailTodosLabel": "To-dos",
+    "futureDetailTodosEmpty": "No to-dos yet — add one from a message below.",
+    "futureDetailAddTodoFromEntry": "Add to to-dos",
+    "futureDetailTodoAdding": "Analyzing…",
+    "futureDetailTodoAdded": "To-do added",
+    "futureDetailTodoFail": "Could not create to-do. Check network and GEMINI_API_KEY on the server."
   },
   "family": {
     "title": "Family Space",
@@ -1041,7 +1053,7 @@ const hi = {
     "futureMemberMom": "माँ",
     "futureDetailTitle": "भविष्य से मुलाकात",
     "futureDetailMissing": "कार्ड नहीं मिला। शायद हटा दिया गया।",
-    "futureDetailDiscussLabel": "परिवार बोर्ड",
+    "futureDetailDiscussLabel": "सबकी बातें",
     "futureDetailDiscussSub": "लिखें या बोलें। सार के लिए बटन दबाएँ।",
     "futureDetailSummaryBlock": "सार व सुझाव",
     "futureDetailSummaryAt": "{{time}} पर",
@@ -1058,7 +1070,13 @@ const hi = {
     "futureDetailSummaryDone": "सार अपडेट",
     "futureDetailSummaryFail": "सार विफल, बाद में कोशिश करें",
     "futureDetailEditTitle": "शीर्षक बदलें",
-    "futureDetailTitleEmpty": "पहले शीर्षक लिखें"
+    "futureDetailTitleEmpty": "पहले शीर्षक लिखें",
+    "futureDetailTodosLabel": "कार्य सूची",
+    "futureDetailTodosEmpty": "अभी कोई कार्य नहीं — संदेश से जोड़ें।",
+    "futureDetailAddTodoFromEntry": "कार्य सूची में जोड़ें",
+    "futureDetailTodoAdding": "विश्लेषण…",
+    "futureDetailTodoAdded": "कार्य जोड़ा गया",
+    "futureDetailTodoFail": "कार्य नहीं बना। नेटवर्क व सर्वर पर Gemini कुंजी देखें।"
   },
   "family": {
     "title": "परिवार स्थान",
