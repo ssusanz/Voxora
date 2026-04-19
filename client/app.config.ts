@@ -20,6 +20,16 @@ const iosBundleIdentifier =
   (typeof process.env.IOS_BUNDLE_IDENTIFIER === 'string' && process.env.IOS_BUNDLE_IDENTIFIER.trim()) ||
   'com.susanshpd.voxora';
 
+/**
+ * iOS build number（CFBundleVersion），仅作 **本地** `expo run:ios` / 未启用 remote 版本源时的回退值。
+ *
+ * **EAS 云端构建**：`client/eas.json` 已设 `cli.appVersionSource: "remote"` 且各 profile `autoIncrement: true`，
+ * 由 EAS 在服务器侧递增 **ios.buildNumber / android.versionCode**，**不必**每次改这里或改 `IOS_BUILD_NUMBER`。
+ * 首次从「手改 build 号」迁到 remote 时，请在仓库根执行一次 `eas build:version:set`，把当前商店上的 build 同步为远程起点。
+ */
+const iosBuildNumber =
+  (typeof process.env.IOS_BUILD_NUMBER === 'string' && process.env.IOS_BUILD_NUMBER.trim()) || '1';
+
 export default ({ config }: ConfigContext): ExpoConfig => {
   const baseExtra =
     config.extra && typeof config.extra === 'object' ? (config.extra as Record<string, unknown>) : {};
@@ -34,7 +44,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     "name": appName,
     "slug": slugAppName,
-    "version": "1.2.1",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -43,6 +53,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": iosBundleIdentifier,
+      "buildNumber": iosBuildNumber,
       /**
        * 与 Android usesCleartextTraffic 对应：当前后端为 http 时避免 ATS 拦截。
        * 全站 HTTPS 后可改为按域名 NSExceptionDomains 或移除此项。

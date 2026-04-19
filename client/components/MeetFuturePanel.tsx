@@ -18,7 +18,7 @@ import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { InlineDeleteReveal } from '@/components/InlineDeleteReveal';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import {
-  loadFuturePlans,
+  syncFuturePlansWithServer,
   saveFuturePlans,
   type FuturePlan,
   type FuturePlanKind,
@@ -65,7 +65,7 @@ export function MeetFuturePanel({ bottomSpacerHeight }: MeetFuturePanelProps) {
       let cancelled = false;
       (async () => {
         try {
-          const loaded = await loadFuturePlans();
+          const loaded = await syncFuturePlansWithServer();
           if (cancelled) return;
           const next = loaded.map((x) => ({
             ...x,

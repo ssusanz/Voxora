@@ -8,12 +8,7 @@ import { getBackendBaseUrl } from '@/utils/backend';
 /** 与 expo-speech-recognition 的 ExpoSpeechRecognitionModule 一致的最小形状（不经由会 requireNativeModule 的包入口加载） */
 type NativeSpeechModule = {
   isRecognitionAvailable?: () => boolean;
-  /** Android 31+：是否具备端侧识别能力（与 requiresOnDeviceRecognition 搭配） */
   supportsOnDeviceRecognition?: () => boolean;
-  /** Android 13+：查询端侧已安装/支持的识别语言（与 requiresOnDeviceRecognition 搭配） */
-  getSupportedLocales?: (options: {
-    androidRecognitionServicePackage?: string;
-  }) => Promise<{ locales: string[]; installedLocales: string[] }>;
   requestPermissionsAsync: () => Promise<{ granted: boolean }>;
   addListener: (
     event: string,
@@ -61,44 +56,28 @@ function normSpeechLangTag(tag: string): string {
   return tag.trim().replace(/_/g, '-').toLowerCase();
 }
 
-function primarySpeechLang(tag: string): string {
-  const n = normSpeechLangTag(tag);
-  const i = n.indexOf('-');
-  return i === -1 ? n : n.slice(0, i);
-}
-
 /**
- * 在端侧已安装语言列表中选一个与 desired 最匹配的；仅用于 requiresOnDeviceRecognition。
- * 若无匹配返回 null（调用方应关闭端侧或提示下载离线包）。
+ * `SFSpeechRecognizer` / 系统识别常用 `zh-CN`、`en-US`；`expo-localization` 常返回 `zh-Hans-CN` 等。
  */
-function pickOnDeviceSpeechLang(desired: string, installed: string[]): string | null {
-  if (!installed.length) return null;
-  const inst = installed.map((x) => ({ raw: x, norm: normSpeechLangTag(x) }));
-  const want = normSpeechLangTag(desired);
-  const hitExact = inst.find((x) => x.norm === want);
-  if (hitExact) return hitExact.raw;
-  const prim = primarySpeechLang(desired);
-  const hitPrimary = inst.find((x) => x.norm === prim || x.norm.startsWith(`${prim}-`));
-  if (hitPrimary) return hitPrimary.raw;
-  if (prim === 'zh') {
-    const zh = inst.find(
-      (x) =>
-        x.norm.startsWith('zh-') ||
-        x.norm === 'zh' ||
-        x.norm.includes('hans') ||
-        x.norm.includes('cmn')
-    );
-    if (zh) return zh.raw;
-  }
-  return null;
+function normalizeSpeechRecognizerLocaleTag(tag: string): string {
+  const n = normSpeechLangTag(tag);
+  if (n.startsWith('zh-hans') || n === 'zh-cn' || n === 'zh-sg' || n.startsWith('cmn-hans')) return 'zh-CN';
+  if (n.startsWith('zh-hant-hk') || n.startsWith('zh-hk')) return 'zh-HK';
+  if (n.startsWith('zh-hant-mo')) return 'zh-MO';
+  if (n.startsWith('zh-hant-tw') || n === 'zh-tw') return 'zh-TW';
+  if (n === 'zh' || n.startsWith('cmn-')) return 'zh-CN';
+  if (n.startsWith('en-gb')) return 'en-GB';
+  if (n.startsWith('en-au')) return 'en-AU';
+  if (n.startsWith('en-in')) return 'en-IN';
+  if (n.startsWith('en-')) return 'en-US';
+  return tag.trim().replace(/_/g, '-');
 }
 
 function getSpeechNativeModuleHint(): string {
   if (isRunningInsideExpoGo()) {
     return (
-      '当前为 Expo Go：它不会包含项目里的自定义原生模块，因此无法使用本机语音识别。\n\n' +
-      '请在本机安装「开发构建」或正式包后再试：在 client 目录执行 npx expo run:android / npx expo run:ios，' +
-      '或使用 EAS Build（development / preview / production）。'
+      'Expo Go 不含 expo-speech-recognition 原生模块：请确认后端已配置 GEMINI_API_KEY，以使用「录音 → 服务端转写」；' +
+      '或安装开发构建 / EAS 包以启用本机识别。'
     );
   }
   return (
@@ -257,9 +236,9 @@ export default function VoiceInput({
   onCloseRef.current = onClose;
 
   /**
-   * device: iOS/Android 本机识别（expo-speech-recognition，不上传录音）
-   * browser: Web Speech API（浏览器本机，不上传录音）
-   * legacy: 仅 Web 在浏览器不支持语音识别时，录音上传服务端转写（移动端已禁用）
+   * device: iOS/Android 系统 Speech API（expo-speech-recognition，音频由系统处理）
+   * browser: Web Speech API
+   * legacy: 录音上传 `/api/v1/voice/transcribe`（Expo Go / 无原生模块时；服务端 Gemini）
    */
   const [speechEngine, setSpeechEngine] = useState<'none' | 'device' | 'browser' | 'legacy'>('none');
   const deviceSpeechActiveRef = useRef(false);
@@ -267,6 +246,11 @@ export default function VoiceInput({
   const speechListenersRef = useRef<{ remove: () => void }[]>([]);
   /** Web Speech API 实例（仅 web） */
   const browserSpeechRecRef = useRef<{ stop: () => void; abort: () => void } | null>(null);
+  /** Expo Go / 无本机识别模块：expo-av 录音后上传服务端 Gemini 转写 */
+  const nativeCloudRecordingRef = useRef<{
+    stopAndUnloadAsync: () => Promise<unknown>;
+    getURI: () => string | null;
+  } | null>(null);
 
   const clearSpeechListeners = () => {
     speechListenersRef.current.forEach((s) => {
@@ -334,7 +318,6 @@ export default function VoiceInput({
   const tryStartDeviceSpeech = async (): Promise<boolean> => {
     const ExpoSpeechRecognitionModule = getOptionalExpoSpeechNativeModule();
     if (!ExpoSpeechRecognitionModule) {
-      showToast(getSpeechNativeModuleHint(), 'error');
       return false;
     }
 
@@ -397,10 +380,14 @@ export default function VoiceInput({
           const networkHint =
             Platform.OS === 'android' && errCode === 'network'
               ? '语音识别云端不可用（常见于网络环境）。已在 Android 13+ 优先使用端侧识别；若仍失败，请在系统设置中为中文下载离线语音数据，或改用文字输入。'
-              : '';
+              : Platform.OS === 'ios' && errCode === 'network'
+                ? '语音识别需要网络或本机离线听写包。请在 设置 → 通用 → 键盘 → 听写 中开启听写，并下载当前语言；或连接网络后再试。'
+                : '';
           const langHint =
             errCode === 'language-not-supported'
-              ? '当前识别引擎不支持所选语言。请在系统设置中下载该语言的离线语音，或到设置 → 系统语言中切换为已安装离线包的语言后再试。'
+              ? Platform.OS === 'ios'
+                ? '本机听写资源在：设置 → 通用 → 键盘 → 听写（与「翻译」里的离线语言不是同一套）。请在该页下载「普通话-中国大陆」等；或连接网络以使用在线识别。/ On iPhone: Settings → General → Keyboard → Dictation (not Translate). Download Mandarin, or use Wi‑Fi for online recognition.'
+                : '当前识别引擎不支持所选语言。请在系统设置中下载该语言的离线语音，或到设置 → 系统语言中切换为已安装离线包的语言后再试。'
               : '';
           showToast(
             langHint ||
@@ -435,7 +422,9 @@ export default function VoiceInput({
 
       const { getLocales } = await import('expo-localization');
       const locales = getLocales();
-      let lang = locales[0]?.languageTag?.replace('_', '-') || 'en-US';
+      const lang = normalizeSpeechRecognizerLocaleTag(
+        locales[0]?.languageTag?.replace('_', '-') || 'en-US'
+      );
 
       const androidApi =
         Platform.OS === 'android' ? parseInt(String(Platform.Version), 10) : 0;
@@ -444,61 +433,14 @@ export default function VoiceInput({
         (Platform.OS === 'android' && !Number.isNaN(androidApi) && androidApi >= 33);
 
       /**
-       * Android 13+：优先端侧识别，避免默认 Google 云端（国内常报 network / code 2）。
-       * 端侧只认「已安装」语言包；expo-localization 的 zh-Hans-CN 等若未安装会报 language-not-supported，
-       * 需用 getSupportedLocales + installedLocales 对齐到系统实际可用的 tag。
+       * iOS / Android：均经 `expo-speech-recognition` → 系统 Speech API；**不传** `requiresOnDeviceRecognition`，
+       * 与产品「可联网、服务端 Gemini」一致，避免强制纯端侧带来的语言包/网络问题。
        */
-      const supportsOnDevice =
-        typeof ExpoSpeechRecognitionModule.supportsOnDeviceRecognition === 'function'
-          ? ExpoSpeechRecognitionModule.supportsOnDeviceRecognition()
-          : undefined;
-      let useAndroidOnDevice =
-        Platform.OS === 'android' &&
-        !Number.isNaN(androidApi) &&
-        androidApi >= 33 &&
-        supportsOnDevice !== false;
-
-      /** Android 12–12L：无 createOnDeviceSpeechRecognizer；若系统回报支持端侧，可尝试绑定 AS 服务 */
-      const useAndroidAsPackage =
-        Platform.OS === 'android' &&
-        !Number.isNaN(androidApi) &&
-        androidApi >= 31 &&
-        androidApi < 33 &&
-        supportsOnDevice === true;
-
-      if (Platform.OS === 'android' && useAndroidOnDevice && typeof ExpoSpeechRecognitionModule.getSupportedLocales === 'function') {
-        try {
-          let installed: string[] = [];
-          try {
-            const rAs = await ExpoSpeechRecognitionModule.getSupportedLocales({
-              androidRecognitionServicePackage: 'com.google.android.as',
-            });
-            installed = Array.isArray(rAs.installedLocales) ? rAs.installedLocales : [];
-          } catch {
-            /* AS 不可用时再试默认服务 */
-          }
-          if (!installed.length) {
-            const r0 = await ExpoSpeechRecognitionModule.getSupportedLocales({});
-            installed = Array.isArray(r0.installedLocales) ? r0.installedLocales : [];
-          }
-          const picked = pickOnDeviceSpeechLang(lang, installed);
-          if (picked) {
-            lang = picked;
-          } else {
-            useAndroidOnDevice = false;
-          }
-        } catch {
-          useAndroidOnDevice = false;
-        }
-      }
-
       ExpoSpeechRecognitionModule.start({
         lang,
         interimResults: true,
         continuous,
         addsPunctuation: true,
-        ...(useAndroidOnDevice ? { requiresOnDeviceRecognition: true as const } : {}),
-        ...(useAndroidAsPackage ? { androidRecognitionServicePackage: 'com.google.android.as' } : {}),
       });
 
       deviceSpeechActiveRef.current = true;
@@ -520,6 +462,58 @@ export default function VoiceInput({
       } else {
         showToast(`语音识别启动失败：${msg}`, 'error');
       }
+      return false;
+    }
+  };
+
+  const abortNativeCloudRecording = async () => {
+    const rec = nativeCloudRecordingRef.current;
+    nativeCloudRecordingRef.current = null;
+    if (!rec) return;
+    try {
+      await rec.stopAndUnloadAsync();
+    } catch {
+      /* ignore */
+    }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsRecording(false);
+    setSpeechEngine('none');
+  };
+
+  /** 无 expo-speech-recognition 时（如 Expo Go）：录音 → POST /api/v1/voice/transcribe（服务端 Gemini） */
+  const tryStartNativeCloudRecording = async (): Promise<boolean> => {
+    if (isWebPlatform) return false;
+    try {
+      const { Audio } = await import('expo-av');
+      const perm = await Audio.requestPermissionsAsync();
+      if (!perm.granted) {
+        showToast('需要麦克风权限以录音并云端转写', 'error');
+        return false;
+      }
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+      nativeCloudRecordingRef.current = recording;
+      setSpeechEngine('legacy');
+      setIsRecording(true);
+      setRecordingDuration(0);
+      intervalRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+      return true;
+    } catch (e) {
+      console.warn('tryStartNativeCloudRecording:', e);
+      showToast(e instanceof Error ? e.message : '无法开始录音', 'error');
       return false;
     }
   };
@@ -628,6 +622,7 @@ export default function VoiceInput({
         webRecordingRef.current.stream.getTracks().forEach((track) => track.stop());
       }
       void abortDeviceSpeech();
+      void abortNativeCloudRecording();
       abortBrowserSpeech();
     };
   }, []);
@@ -635,6 +630,7 @@ export default function VoiceInput({
   useEffect(() => {
     if (!visible) {
       void abortDeviceSpeech();
+      void abortNativeCloudRecording();
       abortBrowserSpeech();
       setSpeechEngine('none');
     }
@@ -822,9 +818,16 @@ export default function VoiceInput({
         await startWebRecording();
         return;
       }
-      const ok = await tryStartDeviceSpeech();
-      if (ok) return;
-      /* 失败原因已在 tryStartDeviceSpeech 内 Toast（权限 / 无原生模块 / 等） */
+      if (getOptionalExpoSpeechNativeModule()) {
+        const ok = await tryStartDeviceSpeech();
+        if (ok) return;
+      }
+      const cloudOk = await tryStartNativeCloudRecording();
+      if (cloudOk) return;
+      showToast(
+        '无法开始语音：请允许麦克风，并确保服务端已配置 GEMINI_API_KEY（Expo Go / 无本机模块时走云端转写）；或安装含 expo-speech-recognition 的独立包。',
+        'error'
+      );
     })().catch((e) => console.warn('VoiceInput startRecording:', e));
   };
 
@@ -842,6 +845,50 @@ export default function VoiceInput({
         } catch {
           deviceSpeechActiveRef.current = false;
           setIsRecording(false);
+          setSpeechEngine('none');
+        }
+        return;
+      }
+      if (nativeCloudRecordingRef.current) {
+        const rec = nativeCloudRecordingRef.current;
+        nativeCloudRecordingRef.current = null;
+        try {
+          if (Platform.OS === 'android') {
+            await new Promise<void>((r) => setTimeout(r, 40));
+          }
+          await rec.stopAndUnloadAsync();
+        } catch {
+          setIsRecording(false);
+          setSpeechEngine('none');
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          return;
+        }
+        const uri = rec.getURI();
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setIsRecording(false);
+        if (!uri) {
+          showToast('未获得录音文件', 'error');
+          setSpeechEngine('none');
+          return;
+        }
+        try {
+          /** SDK 54：主入口 `readAsStringAsync` 已弃用且会抛错，须用 legacy 子路径 */
+          const FileSystem = await import('expo-file-system/legacy');
+          const b64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+          await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+          const lower = uri.toLowerCase();
+          const mimeType = lower.includes('.webm') ? 'audio/webm' : 'audio/m4a';
+          const filename = mimeType === 'audio/webm' ? 'recording.webm' : 'recording.m4a';
+          await uploadAudio(b64, filename, mimeType);
+        } catch (e) {
+          console.warn('native cloud recording finalize:', e);
+          showToast(e instanceof Error ? e.message : '读取录音失败', 'error');
           setSpeechEngine('none');
         }
         return;
@@ -864,6 +911,11 @@ export default function VoiceInput({
     void (async () => {
       if (deviceSpeechActiveRef.current) {
         await abortDeviceSpeech();
+        onClose();
+        return;
+      }
+      if (nativeCloudRecordingRef.current) {
+        await abortNativeCloudRecording();
         onClose();
         return;
       }
@@ -1028,8 +1080,8 @@ export default function VoiceInput({
                 <Text style={styles.hint}>{subtitle}</Text>
                 {!isWebPlatform && isRunningInsideExpoGo() ? (
                   <Text style={styles.expoGoBanner}>
-                    您正在使用 Expo Go：语音输入需要带原生代码的独立应用（开发构建或商店包），Expo Go
-                    内无法使用本机识别。请用 npx expo run:android / run:ios 安装到本机后再试。
+                    Expo Go：语音将录音并上传到你的后端，由服务端 Gemini 转写（需配置 GEMINI_API_KEY 且手机能访问
+                    EXPO_PUBLIC_BACKEND_BASE_URL）。亦可用开发构建启用本机识别。
                   </Text>
                 ) : null}
               </>
@@ -1063,13 +1115,15 @@ export default function VoiceInput({
             {/* 平台标识 */}
             <Text style={styles.platformHint}>
               {!isWebPlatform && isRunningInsideExpoGo() && speechEngine === 'none'
-                ? 'Expo Go · 无自定义原生模块'
+                ? 'Expo Go · 默认云端转写'
                 : speechEngine === 'device'
-                  ? '本机识别 · iOS/Android'
+                  ? '本机识别 · Speech API'
                   : speechEngine === 'browser'
                     ? '本机识别 · Web Speech'
                     : speechEngine === 'legacy'
-                      ? 'Web · 云端转写（录音上传）'
+                      ? isWebPlatform
+                        ? 'Web · 云端转写'
+                        : '移动 · 云端转写（Gemini）'
                       : isWebPlatform
                         ? 'Web'
                         : '移动'}

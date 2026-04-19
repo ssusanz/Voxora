@@ -22,6 +22,7 @@ import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { getBackendBaseUrl } from '@/utils/backend';
 import {
   getFuturePlanById,
+  syncFuturePlansWithServer,
   updateFuturePlan,
   type FuturePlan,
   type FuturePlanEntry,
@@ -77,6 +78,7 @@ export default function MeetFutureDetailScreen() {
       setLoading(false);
       return;
     }
+    await syncFuturePlansWithServer();
     const p = await getFuturePlanById(planId);
     if (!p) {
       setMissing(true);

@@ -255,3 +255,5 @@ import { Screen } from '../../../components/Screen';
 **Coze 空间从 GitHub 拉取后部署**：平台会通过 `.cozeproj/scripts/dev_run.sh` 注入 `EXPO_PUBLIC_BACKEND_BASE_URL`（及与之一致的 `EXPO_PACKAGER_PROXY_URL`）。仓库内 `client/utils/backend.ts` 的 `getBackendBaseUrl()` 已按该约定解析，避免把「后端地址」误当成 Metro 主机；物理机外网调试仍可用 `scripts/voxora-deploy.sh` 自行导出公网 IP 相关变量。
 
 **EAS / 独立安装包（无 Metro）**：`EXPO_PUBLIC_BACKEND_BASE_URL` 必须在 **云端构建可见的环境**里配置（**expo.dev → Environment variables**，且勾选与 `eas.json` 里 profile 的 `environment` 一致：preview / production；或写在 **`client/eas.json` → `build.<profile>.env`**）。**本机 `.env` 或本机 shell `export` 不会随默认 EAS 云端构建传到 Expo 构建机**，仅靠本地文件会导致独立包回退 `localhost`、真机列表为空。修改后需重新打 APK/AAB。
+
+**iOS 对外/亲友测试**：优先 **TestFlight**（`./scripts/eas-build-ios.sh`：`production` 云构建成功后脚本内会自动 **`eas submit --latest`**；`--no-submit` 可跳过）。`preview`/`internal` 依赖 UDID，见 **`docs/ios-eas-joint-testing.md`**。

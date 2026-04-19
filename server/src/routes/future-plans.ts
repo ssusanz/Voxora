@@ -1,9 +1,42 @@
 import { Router } from 'express';
 import { geminiGenerateFreeform, isGeminiSummarizeConfigured } from '../lib/gemini-summarize';
+import { readFuturePlansFile, writeFuturePlansFile } from '../lib/future-plans-file-store';
 
 const router = Router();
 
 type EntryBody = { authorLabel?: string; text?: string };
+
+/** 全量同步：设备端「遇见未来」卡片 JSON 落盘（与小结接口同前缀，便于统一部署） */
+router.get('/', async (_req, res) => {
+  try {
+    const plans = await readFuturePlansFile();
+    res.json({ ok: true, plans });
+  } catch (e) {
+    console.error('[future-plans] GET list error:', e);
+    res.status(500).json({ ok: false, error: 'read_failed' });
+  }
+});
+
+router.put('/', async (req, res) => {
+  try {
+    const plans = req.body?.plans;
+    if (!Array.isArray(plans)) {
+      res.status(400).json({ ok: false, error: 'plans_must_be_array' });
+      return;
+    }
+    for (const p of plans) {
+      if (typeof p !== 'object' || p === null || typeof (p as { id?: unknown }).id !== 'string') {
+        res.status(400).json({ ok: false, error: 'invalid_plan' });
+        return;
+      }
+    }
+    await writeFuturePlansFile(plans);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[future-plans] PUT sync error:', e);
+    res.status(500).json({ ok: false, error: 'write_failed' });
+  }
+});
 
 function buildLocalSummary(title: string, lines: string[]): string {
   const body =
