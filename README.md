@@ -250,7 +250,9 @@ import { Screen } from '../../../components/Screen';
 
 ## 本地开发
 
-`coze dev`：用来首次启动前后端服务，也可以用来重启前后端服务（该命令会先尝试杀掉占用端口的进程，再启动服务）
+在仓库根目录执行 **`pnpm dev`**：会运行 **`.cozeproj/scripts/dev_run.sh`**，用于首次或重启前后端（脚本内会处理端口占用等）。**不要求**安装 `coze` CLI；若使用 Coze 空间，其 **`coze dev`** 与上述脚本等价。
+
+**说明：** **Cursor** 等仅作本地**编辑 / IDE**；前后端进程仍由 **`pnpm dev`**（或各子目录脚本）启动。
 
 ## 远程部署（Mac mini / 后台运行）
 

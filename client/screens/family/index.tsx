@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Image
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import Animated, { 
   FadeIn, 
@@ -28,87 +28,19 @@ interface FamilyMember {
   name: string;
   avatar: string;
   relationship: string;
-  lastActive?: Date;
   emotionalState?: string;
   emotionColor?: string;
 }
 
-// 家庭提醒类型
+/** 演示提醒：用固定「距今整分钟数」展示相对时间文案，避免在 render/useMemo 中读取系统时钟 */
 interface FamilyAlert {
   id: string;
   memberName: string;
   type: 'heartRate' | 'emotion' | 'milestone';
   message: string;
-  timestamp: Date;
+  ageMinutes: number;
   isRead: boolean;
 }
-
-// 模拟数据
-const mockFamilyMembers: FamilyMember[] = [
-  { 
-    id: '1', 
-    name: '奶奶', 
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200',
-    relationship: '奶奶',
-    lastActive: new Date(Date.now() - 5 * 60000),
-    emotionalState: 'joy',
-    emotionColor: '#FFD700',
-  },
-  { 
-    id: '2', 
-    name: '爸爸', 
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
-    relationship: '爸爸',
-    lastActive: new Date(Date.now() - 2 * 60 * 60000),
-    emotionalState: 'calm',
-    emotionColor: '#81C784',
-  },
-  { 
-    id: '3', 
-    name: '妈妈', 
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200',
-    relationship: '妈妈',
-    lastActive: new Date(Date.now() - 30 * 60000),
-    emotionalState: 'love',
-    emotionColor: '#FF5252',
-  },
-  { 
-    id: '4', 
-    name: '小明', 
-    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200',
-    relationship: '哥哥',
-    lastActive: new Date(Date.now() - 3 * 60 * 60000),
-    emotionalState: 'excitement',
-    emotionColor: '#7C6AFF',
-  },
-];
-
-const mockAlerts: FamilyAlert[] = [
-  {
-    id: '1',
-    memberName: '奶奶',
-    type: 'emotion',
-    message: '刚刚记录了一个"想念"情感',
-    timestamp: new Date(Date.now() - 5 * 60000),
-    isRead: false,
-  },
-  {
-    id: '2',
-    memberName: '妈妈',
-    type: 'heartRate',
-    message: '情绪状态稳定',
-    timestamp: new Date(Date.now() - 30 * 60000),
-    isRead: false,
-  },
-  {
-    id: '3',
-    memberName: '爸爸',
-    type: 'milestone',
-    message: '新增了一张照片',
-    timestamp: new Date(Date.now() - 2 * 60 * 60000),
-    isRead: true,
-  },
-];
 
 // 呼吸灯组件
 function BreathingLight({ members, t }: { members: FamilyMember[]; t: (key: string) => string }) {
@@ -143,37 +75,118 @@ function BreathingLight({ members, t }: { members: FamilyMember[]; t: (key: stri
 }
 
 export default function FamilySpaceScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useSafeRouter();
   
   const WHITEBOARD_STORAGE_KEY = 'voxora:whiteboard:v1';
 
-  const [members] = useState<FamilyMember[]>(mockFamilyMembers);
-  const [alerts] = useState<FamilyAlert[]>(mockAlerts);
+  const members = useMemo((): FamilyMember[] => {
+    return [
+      {
+        id: '1',
+        name: t('family.demoMembers.grandma'),
+        avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200',
+        relationship: t('family.demoMembers.grandma'),
+        emotionalState: 'joy',
+        emotionColor: '#FFD700',
+      },
+      {
+        id: '2',
+        name: t('family.demoMembers.dad'),
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
+        relationship: t('family.demoMembers.dad'),
+        emotionalState: 'calm',
+        emotionColor: '#81C784',
+      },
+      {
+        id: '3',
+        name: t('family.demoMembers.mom'),
+        avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200',
+        relationship: t('family.demoMembers.mom'),
+        emotionalState: 'love',
+        emotionColor: '#FF5252',
+      },
+      {
+        id: '4',
+        name: t('family.demoMembers.child'),
+        avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200',
+        relationship: t('family.demoMembers.child'),
+        emotionalState: 'excitement',
+        emotionColor: '#7C6AFF',
+      },
+    ];
+  }, [t, i18n.language]);
+
+  const alerts = useMemo((): FamilyAlert[] => {
+    return [
+      {
+        id: '1',
+        memberName: t('family.demoMembers.grandma'),
+        type: 'emotion',
+        message: t('family.demoAlertMissYou'),
+        ageMinutes: 5,
+        isRead: false,
+      },
+      {
+        id: '2',
+        memberName: t('family.demoMembers.mom'),
+        type: 'heartRate',
+        message: t('family.emotionStable2'),
+        ageMinutes: 30,
+        isRead: false,
+      },
+      {
+        id: '3',
+        memberName: t('family.demoMembers.dad'),
+        type: 'milestone',
+        message: t('family.addedPhoto'),
+        ageMinutes: 120,
+        isRead: true,
+      },
+    ];
+  }, [t, i18n.language]);
+
   const [activeTab, setActiveTab] = useState<'topology' | 'whiteboard'>('topology');
-  const [whiteboardContent, setWhiteboardContent] = useState<{ id: string; content: string; author: string; timestamp: Date }[]>([
-    { id: '1', content: '周末一起包饺子吧！', author: '奶奶', timestamp: new Date(Date.now() - 25 * 60 * 1000) },
-    { id: '2', content: '好的，我准备馅料', author: '妈妈', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-  ]);
+  const [whiteboardContent, setWhiteboardContent] = useState<{ id: string; content: string; author: string; timestamp: Date }[]>([]);
 
   // 从本地存储恢复白板内容（避免刷新/重载丢失）
   const loadWhiteboard = useCallback(async () => {
     try {
       const raw = await AsyncStorage.getItem(WHITEBOARD_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { id: string; content: string; author: string; timestamp: string }[];
-      if (!Array.isArray(parsed)) return;
-      setWhiteboardContent(parsed.map((m) => ({
-        id: String(m.id),
-        content: String(m.content ?? ''),
-        author: String(m.author ?? ''),
-        timestamp: new Date(m.timestamp),
-      })));
+      if (raw) {
+        const parsed = JSON.parse(raw) as { id: string; content: string; author: string; timestamp: string }[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setWhiteboardContent(
+            parsed.map((m) => ({
+              id: String(m.id),
+              content: String(m.content ?? ''),
+              author: String(m.author ?? ''),
+              timestamp: new Date(m.timestamp),
+            }))
+          );
+          return;
+        }
+      }
     } catch (e) {
       console.log('恢复家庭白板失败（可忽略）');
     }
-  }, []);
+    const base = Date.now();
+    setWhiteboardContent([
+      {
+        id: '1',
+        content: t('family.demoWhiteboardMsg1'),
+        author: t('family.demoMembers.grandma'),
+        timestamp: new Date(base - 25 * 60 * 1000),
+      },
+      {
+        id: '2',
+        content: t('family.demoWhiteboardMsg2'),
+        author: t('family.demoMembers.mom'),
+        timestamp: new Date(base - 2 * 60 * 60 * 1000),
+      },
+    ]);
+  }, [t]);
 
   const persistWhiteboard = useCallback(async (items: { id: string; content: string; author: string; timestamp: Date }[]) => {
     try {
@@ -204,17 +217,17 @@ export default function FamilySpaceScreen() {
     return () => clearTimeout(id);
   }, [loadWhiteboard]);
 
-  // 格式化时间
-  const formatTime = (date: Date): string => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return t('family.justNow');
-    if (minutes < 60) return t('family.minutesAgo', { minutes });
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return t('family.hoursAgo', { hours });
-    return t('family.daysAgo', { days: Math.floor(hours / 24) });
-  };
+  const formatMinutesAgoLabel = useCallback(
+    (ageMinutes: number): string => {
+      const m = Math.floor(ageMinutes);
+      if (m < 1) return t('family.justNow');
+      if (m < 60) return t('family.minutesAgo', { minutes: m });
+      const h = Math.floor(m / 60);
+      if (h < 24) return t('family.hoursAgo', { hours: h });
+      return t('family.daysAgo', { days: Math.floor(h / 24) });
+    },
+    [t]
+  );
 
   // 获取提醒图标
   const getAlertIcon = (type: string): string => {
@@ -330,7 +343,7 @@ export default function FamilySpaceScreen() {
                   const next = [...prev, {
                     id: Date.now().toString(),
                     content: text,
-                    author: '我',
+                    author: t('family.whiteboardYou'),
                     timestamp: new Date(),
                   }];
                   persistWhiteboard(next);
@@ -368,7 +381,7 @@ export default function FamilySpaceScreen() {
                 <Text style={styles.alertMember}>{alert.memberName}</Text>
                 <Text style={styles.alertMessage}>{alert.message}</Text>
               </View>
-              <Text style={styles.alertTime}>{formatTime(alert.timestamp)}</Text>
+              <Text style={styles.alertTime}>{formatMinutesAgoLabel(alert.ageMinutes)}</Text>
             </Animated.View>
           ))}
         </View>

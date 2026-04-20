@@ -250,7 +250,9 @@ import { Screen } from '../../../components/Screen';
 
 ## 本地开发
 
-`coze dev`：用来首次启动前后端服务，也可以用来重启前后端服务（该命令会先尝试杀掉占用端口的进程，再启动服务）
+在仓库根目录执行 **`pnpm dev`**：会运行 **`.cozeproj/scripts/dev_run.sh`**，用于首次或重启前后端（脚本内会处理端口占用等）。**不要求**本机安装 `coze` 命令行；若你仍在 Coze 空间内开发，平台上的 **`coze dev`** 与上述脚本等价。
+
+**IDE 说明：** **Cursor** 等工具仅作为**本地开发环境里的编辑器**（含 AI 辅助写代码）；**不负责启动或托管**前后端进程。实际运行仍依赖本机 **Node / pnpm** 与上面的 **`pnpm dev`**（或各子包脚本）。
 
 **Coze 空间从 GitHub 拉取后部署**：平台会通过 `.cozeproj/scripts/dev_run.sh` 注入 `EXPO_PUBLIC_BACKEND_BASE_URL`（及与之一致的 `EXPO_PACKAGER_PROXY_URL`）。仓库内 `client/utils/backend.ts` 的 `getBackendBaseUrl()` 已按该约定解析，避免把「后端地址」误当成 Metro 主机；物理机外网调试仍可用 `scripts/voxora-deploy.sh` 自行导出公网 IP 相关变量。
 

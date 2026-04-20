@@ -200,7 +200,17 @@ const zhCN = {
     "eveningCheckin": "晚安签到",
     "whiteboardEmpty": "家庭共同目标",
     "whiteboardEmptyHint": "点击上方图标添加",
-    "whiteboardPlaceholder": "写下家庭目标..."
+    "whiteboardPlaceholder": "写下家庭目标...",
+    "demoMembers": {
+      "grandma": "奶奶",
+      "dad": "爸爸",
+      "mom": "妈妈",
+      "child": "小明"
+    },
+    "demoAlertMissYou": "刚刚记录了一个「想念」情感",
+    "demoWhiteboardMsg1": "周末一起包饺子吧！",
+    "demoWhiteboardMsg2": "好的，我准备馅料",
+    "whiteboardYou": "我"
   },
   "emotionMessage": {
     "sendResponse": "送TA回应"
@@ -651,7 +661,17 @@ const en = {
     "eveningCheckin": "Evening Check-in",
     "whiteboardEmpty": "Shared family goals",
     "whiteboardEmptyHint": "Tap the icon above to add",
-    "whiteboardPlaceholder": "Write a family goal..."
+    "whiteboardPlaceholder": "Write a family goal...",
+    "demoMembers": {
+      "grandma": "Grandma",
+      "dad": "Dad",
+      "mom": "Mom",
+      "child": "Leo"
+    },
+    "demoAlertMissYou": "Just recorded a “missing you” feeling",
+    "demoWhiteboardMsg1": "Let’s make dumplings together this weekend!",
+    "demoWhiteboardMsg2": "Sounds good — I’ll prep the filling",
+    "whiteboardYou": "Me"
   },
   "emotionMessage": {
     "sendResponse": "Send a response"
@@ -1102,7 +1122,17 @@ const hi = {
     "eveningCheckin": "शाम की चेक-इन",
     "whiteboardEmpty": "परिवार के साझा लक्ष्य",
     "whiteboardEmptyHint": "जोड़ने के लिए ऊपर आइकन पर टैप करें",
-    "whiteboardPlaceholder": "एक पारिवारिक लक्ष्य लिखें..."
+    "whiteboardPlaceholder": "एक पारिवारिक लक्ष्य लिखें...",
+    "demoMembers": {
+      "grandma": "दादी",
+      "dad": "पापा",
+      "mom": "माँ",
+      "child": "छोटू"
+    },
+    "demoAlertMissYou": "अभी \"याद\" वाला भाव दर्ज किया",
+    "demoWhiteboardMsg1": "इस वीकएंड साथ मिलकर मोमोज़ बनाएँ!",
+    "demoWhiteboardMsg2": "ठीक है, मैं भरावन तैयार कर लूँगी",
+    "whiteboardYou": "मैं"
   },
   "emotionMessage": {
     "sendResponse": "जवाब भेजें"

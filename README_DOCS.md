@@ -107,12 +107,12 @@ cd server && pnpm install
 ### 6. 启动服务
 
 ```bash
-# 方式 1：使用 coze dev（推荐）
-coze dev
+# 方式 1：仓库根目录一键启动（推荐，等同运行 .cozeproj/scripts/dev_run.sh）
+pnpm dev
 
-# 方式 2：手动启动
-# 终端 1 - 启动前端
-cd client && pnpm start
+# 方式 2：手动分终端启动
+# 终端 1 - 启动前端（真机 / Expo Go 常用）
+cd client && pnpm run start:mobile
 
 # 终端 2 - 启动后端
 cd server && pnpm run dev

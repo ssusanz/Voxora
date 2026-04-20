@@ -37,7 +37,7 @@ function getExpoHost(): string | undefined {
   const proxy = process.env.EXPO_PACKAGER_PROXY_URL?.trim();
   const backend = process.env.EXPO_PUBLIC_BACKEND_BASE_URL?.trim();
 
-  // Coze `.cozeproj/scripts/dev_run.sh` sets EXPO_PACKAGER_PROXY_URL === EXPO_PUBLIC_BACKEND_BASE_URL
+  // Root `pnpm dev` runs `.cozeproj/scripts/dev_run.sh`, which sets EXPO_PACKAGER_PROXY_URL === EXPO_PUBLIC_BACKEND_BASE_URL
   // (both point at the API). That is NOT the Metro packager host — skip so we fall through to Constants / RN hostname.
   if (proxy) {
     const proxyIsApiOrigin = Boolean(backend && sameHttpOrigin(proxy, backend));
@@ -93,7 +93,7 @@ function inferBackendPortFromExpoHost(host: string): number {
   if (metroPort === 18081) return 19091;
   // 本机 / 常见 Expo：8081 → 后端 9091
   if (metroPort === 8081) return 9091;
-  // Coze 模板默认 Expo 端口（见 .cozeproj/scripts/dev_run.sh EXPO_PORT=5000）
+  // 本仓库 dev_run.sh 默认 Expo 端口（EXPO_PORT=5000，见 .cozeproj/scripts/dev_run.sh）
   if (metroPort === 5000) return 9091;
   if (!metroPort) {
     if (/^(localhost|127\.0\.0\.1)$/i.test(hostname)) return 9091;
